@@ -6,7 +6,7 @@
 
 | Skill | 用途 |
 | --- | --- |
-| `video-transcript` | 从视频或播放列表 URL 生成 Markdown 转写文档。优先使用人工字幕，也可以回退到 OpenAI 或 Kimi 转写。 |
+| `video-transcript` | 从视频或播放列表 URL 生成 Markdown 转写文档。优先使用人工字幕，也可以回退到 OpenAI、Kimi 或配置好的 MiniMax CLI 命令。 |
 | `yt-dlp-download` | 使用 `yt-dlp` 下载视频、人工字幕和缩略图，支持播放列表和浏览器 Cookie 重试。 |
 
 ## 安装目标
