@@ -1,0 +1,6 @@
+interface:
+  display_name: "yt-dlp Download"
+  short_description: "Download videos, subtitles, and thumbnails"
+  default_prompt: "Use $yt-dlp-download to download this video link."
+policy:
+  allow_implicit_invocation: true
