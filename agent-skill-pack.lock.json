@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "description": "示例锁定文件：记录 Claude、Codex、Cursor 三端能力 skill 包的实际安装验证状态。",
+  "generatedAt": "2026-05-22T00:00:00+08:00",
+  "statusTokens": ["ok", "missing", "drift", "unverified", "quarantined"],
+  "entries": [
+    {
+      "canonicalName": "frontend-design",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "manual", "path": "manual-review-required/frontend-design", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "frontend-design", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\frontend-design", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\frontend-design", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\frontend-design", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "docx",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "plugin", "path": "manual-review-required/documents", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "docx", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\docx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\docx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\docx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "xlsx",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "plugin", "path": "manual-review-required/spreadsheets", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "xlsx", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\xlsx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\xlsx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\xlsx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "pdf",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "manual", "path": "manual-review-required/pdf", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "pdf", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\pdf", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\pdf", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\pdf", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "pptx",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "plugin", "path": "manual-review-required/presentations", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "pptx", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\pptx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\pptx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\pptx", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "web-access",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "plugin", "path": "manual-review-required/browser", "url": "manual-review-required"},
+      "status": "unverified",
+      "drift": {"detected": false, "expected": "web-access", "actual": "unverified"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\web-access", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\web-access", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\web-access", "verifiedAt": null, "status": "unverified", "verificationProbe": "SKILL.md 或 manifest 读取未执行"}
+      ]
+    },
+    {
+      "canonicalName": "pua",
+      "version": "unknown",
+      "commit": "unknown",
+      "checksum": "unknown",
+      "source": {"kind": "manual", "path": "manual-review-required/pua", "url": "manual-review-required"},
+      "status": "quarantined",
+      "drift": {"detected": false, "expected": "quarantined", "actual": "quarantined"},
+      "installations": [
+        {"agent": "Claude", "path": "%USERPROFILE%\\.claude\\skills\\pua", "verifiedAt": null, "status": "quarantined", "verificationProbe": "隔离候选，缺失不阻塞"},
+        {"agent": "Codex", "path": "%USERPROFILE%\\.codex\\skills\\pua", "verifiedAt": null, "status": "quarantined", "verificationProbe": "隔离候选，缺失不阻塞"},
+        {"agent": "Cursor", "path": "%USERPROFILE%\\.cursor\\skills\\pua", "verifiedAt": null, "status": "quarantined", "verificationProbe": "隔离候选，缺失不阻塞"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "contract_note": "本文件只说明契约，不代表真实产物。",
+  "run_id": "vt-2026-05-22-example",
+  "status": "partial",
+  "inputs": [
+    {
+      "kind": "url",
+      "url": "https://example.invalid/watch?v=demo",
+      "requested_formats": ["markdown", "html", "pptx", "pdf"],
+      "confirmed_at": "2026-05-22T00:00:00Z"
+    }
+  ],
+  "metadata_refs": [
+    {
+      "video_id": "demo",
+      "path": "Demo Video/metadata.json",
+      "status": "ok",
+      "hash": "sha256:metadata-example"
+    }
+  ],
+  "content_plan": {
+    "path": "Demo Video/content-plan.md",
+    "status": "ok",
+    "hash": "sha256:content-plan-example",
+    "self_check": "passed"
+  },
+  "web_access": {
+    "used": false,
+    "status": "skipped",
+    "reason": "public video metadata was enough"
+  },
+  "formats": [
+    {
+      "format": "markdown",
+      "requested": true,
+      "selected": true,
+      "status": "ok",
+      "output_path": "Demo Video/original.md"
+    },
+    {
+      "format": "html",
+      "requested": true,
+      "selected": true,
+      "status": "ok",
+      "output_path": "Demo Video/html/index.html",
+      "required_skill": "frontend-design"
+    },
+    {
+      "format": "pptx",
+      "requested": true,
+      "selected": true,
+      "status": "blocked",
+      "reason": "pptx skill missing",
+      "output_path": null,
+      "required_skill": "pptx",
+      "fallback": "html"
+    },
+    {
+      "format": "pdf",
+      "requested": true,
+      "selected": true,
+      "status": "skipped",
+      "reason": "user chose to wait until html QA passes",
+      "derived_from": "html"
+    }
+  ],
+  "outputs": [
+    {
+      "format": "markdown",
+      "path": "Demo Video/original.md",
+      "status": "ok",
+      "hash": "sha256:original-example"
+    },
+    {
+      "format": "html",
+      "path": "Demo Video/html/index.html",
+      "status": "ok",
+      "hash": "sha256:html-example"
+    }
+  ],
+  "hashes": [
+    {
+      "path": "Demo Video/html/index.html",
+      "algorithm": "sha256",
+      "value": "sha256:html-example"
+    }
+  ],
+  "formula_fallbacks": [
+    {
+      "id": "formula-001",
+      "source_latex": "E = mc^2",
+      "target_format": "pptx",
+      "fallback_type": "formula-render",
+      "alt_text": "能量等于质量乘以光速平方",
+      "reason": "pptx editable equation support unavailable",
+      "verification": "readable in render preview"
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset-001",
+      "type": "source-screenshot",
+      "status": "ok",
+      "source": {
+        "url": "https://example.invalid/watch?v=demo",
+        "timestamp": "00:03:18",
+        "path": "Demo Video/assets/screenshots/shot-001.png",
+        "hash": "sha256:shot-example"
+      },
+      "license_or_external_use": "example-public-review-only",
+      "purpose": "说明软件界面状态",
+      "references": [
+        {
+          "format": "html",
+          "location": "section-2#shot-001"
+        }
+      ],
+      "alt_text": "设置面板中三个开关处于开启状态"
+    },
+    {
+      "id": "asset-002",
+      "type": "placeholder",
+      "status": "needs-replacement",
+      "source": {
+        "suggested_size": "16:9",
+        "missing_reason": "user has not provided product photo"
+      },
+      "license_or_external_use": "not publishable until replaced",
+      "purpose": "预留产品实物图位置",
+      "references": [
+        {
+          "format": "html",
+          "location": "section-5#product-photo"
+        }
+      ],
+      "alt_text": "待补产品实物图占位"
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "shot-001",
+      "status": "ok",
+      "source_url": "https://example.invalid/watch?v=demo",
+      "timestamp": "00:03:18",
+      "path": "Demo Video/assets/screenshots/shot-001.png",
+      "transcript_ref": "original.md#t-00-03-18",
+      "references": [
+        {
+          "format": "html",
+          "location": "section-2#shot-001"
+        }
+      ],
+      "alt_text": "设置面板中三个开关处于开启状态",
+      "necessity": "界面状态难以用文字准确表达"
+    }
+  ],
+  "design_checks": [
+    {
+      "stage": "html-anchor",
+      "status": "passed",
+      "checks": ["formula-readable", "asset-sources-visible", "no-overlap"],
+      "evidence": "Demo Video/qa/html-desktop.png"
+    }
+  ],
+  "qa_evidence": [
+    {
+      "id": "qa-001",
+      "format": "html",
+      "kind": "desktop-screenshot",
+      "viewport": "1440x900",
+      "path": "Demo Video/qa/html-desktop.png",
+      "hash": "sha256:qa-example",
+      "result": "passed"
+    }
+  ],
+  "redacted_argv": [
+    "scripts/transcript.py",
+    "--dry-run",
+    "--output-dir",
+    "<output-dir>",
+    "https://example.invalid/watch?v=demo"
+  ],
+  "privacy_and_copyright": {
+    "external_upload": false,
+    "paid_step": false,
+    "sensitive_values_recorded": false,
+    "copyright_notes": "example only; real runs must record actual authorization scope"
+  },
+  "tool_versions": {
+    "video-transcript": "example",
+    "python": "3.x",
+    "yt-dlp": "example",
+    "ffmpeg": "example"
+  },
+  "failures": [
+    {
+      "stage": "pptx",
+      "status": "blocked",
+      "reason": "pptx skill missing",
+      "recoverable": true,
+      "next_action": "install pptx skill or skip pptx output"
+    }
+  ],
+  "next_actions": [
+    {
+      "stage": "assets",
+      "action": "replace asset-002 before publishing"
+    },
+    {
+      "stage": "pptx",
+      "action": "retry only failed stage after pptx skill is available"
+    }
+  ]
+}

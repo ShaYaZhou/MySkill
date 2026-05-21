@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "tool": "video-transcript",
+  "title": "示例视频标题",
+  "url": "https://example.invalid/watch?v=abc123",
+  "video_id": "abc123",
+  "status": "ok",
+  "source": "human_subtitle",
+  "original_language": "en",
+  "language_state": "needs_zh_translation",
+  "needs_zh_translation": true,
+  "original_path": "D:/example-output/example/original.md",
+  "zh_path": "D:/example-output/example/zh.md",
+  "privacy_gate": "none",
+  "warnings": [
+    "示例文件只说明 schema，不代表真实运行结果"
+  ]
+}

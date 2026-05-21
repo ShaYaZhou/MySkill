@@ -1,0 +1,209 @@
+schemaVersion: 1
+description: Claude、Codex、Cursor 三端必装能力 skill 包期望矩阵。
+statusTokens:
+  install: [required, optional, quarantined]
+  verification: [ok, missing, drift, unverified, quarantined]
+agents:
+  - name: Claude
+    installRoot: "%USERPROFILE%\\.claude\\skills"
+    inScope: true
+  - name: Codex
+    installRoot: "%USERPROFILE%\\.codex\\skills"
+    inScope: true
+  - name: Cursor
+    installRoot: "%USERPROFILE%\\.cursor\\skills"
+    inScope: true
+  - name: Mavis
+    installRoot: "%USERPROFILE%\\.mavis\\skills"
+    inScope: false
+    caveat: "Mavis 保留为既有安装目标，不纳入本轮强制矩阵。"
+skills:
+  - canonicalName: frontend-design
+    aliases: [Frontend Design Skill, frontend-design-skill, design]
+    capability: frontend-design
+    source:
+      kind: manual
+      path: manual-review-required/frontend-design
+      url: manual-review-required
+    callName: frontend-design
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: frontend-design
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\frontend-design"
+        callName: frontend-design
+        agentCaveat: "确认 Claude 项目或个人 skill 入口可按该名称显式调用。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\frontend-design"
+        callName: frontend-design
+        agentCaveat: "确认 Codex skill 描述不会与前端实现任务的内置规则冲突。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\frontend-design"
+        callName: frontend-design
+        agentCaveat: "确认 Cursor 规则文件或 skill adapter 能路由到该能力。"
+  - canonicalName: docx
+    aliases: [docx Skill, documents, word]
+    capability: office-docx
+    source:
+      kind: plugin
+      path: manual-review-required/documents
+      url: manual-review-required
+    callName: docx
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: docx
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\docx"
+        callName: docx
+        agentCaveat: "确认可生成或编辑 Word/DOCX，并有渲染检查路径。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\docx"
+        callName: docx
+        agentCaveat: "可映射到 Documents 能力；实际调用名需在 lock 中记录。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\docx"
+        callName: docx
+        agentCaveat: "确认本地 adapter 不把 DOCX 与纯 Markdown 导出混用。"
+  - canonicalName: xlsx
+    aliases: [xlsx Skill, spreadsheets, excel]
+    capability: office-xlsx
+    source:
+      kind: plugin
+      path: manual-review-required/spreadsheets
+      url: manual-review-required
+    callName: xlsx
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: xlsx
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\xlsx"
+        callName: xlsx
+        agentCaveat: "用于表格、数据摘要和资料整理，不是 video-transcript 默认输出。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\xlsx"
+        callName: xlsx
+        agentCaveat: "可映射到 Spreadsheets 能力；实际调用名需在 lock 中记录。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\xlsx"
+        callName: xlsx
+        agentCaveat: "仅在用户选择表格或数据整理阶段时调用。"
+  - canonicalName: pdf
+    aliases: [pdf Skill, pdf-export, render-pdf]
+    capability: office-pdf
+    source:
+      kind: manual
+      path: manual-review-required/pdf
+      url: manual-review-required
+    callName: pdf
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: pdf
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\pdf"
+        callName: pdf
+        agentCaveat: "PDF 默认作为 HTML、DOCX 或 PPTX 的派生导出。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\pdf"
+        callName: pdf
+        agentCaveat: "验证时记录由哪个渲染链路提供 PDF 能力。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\pdf"
+        callName: pdf
+        agentCaveat: "不得把空白或未渲染文件标记为 PDF 成功。"
+  - canonicalName: pptx
+    aliases: [pptx Skill, presentations, slides]
+    capability: office-pptx
+    source:
+      kind: plugin
+      path: manual-review-required/presentations
+      url: manual-review-required
+    callName: pptx
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: pptx
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\pptx"
+        callName: pptx
+        agentCaveat: "确认可生成 PPTX，并能渲染前几页做 QA。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\pptx"
+        callName: pptx
+        agentCaveat: "可映射到 Presentations 能力；实际调用名需在 lock 中记录。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\pptx"
+        callName: pptx
+        agentCaveat: "发布型输出必须保留素材来源和公式降级记录。"
+  - canonicalName: web-access
+    aliases: [Web Access Skill, browser, web-access-skill]
+    capability: web-access
+    source:
+      kind: plugin
+      path: manual-review-required/browser
+      url: manual-review-required
+    callName: web-access
+    status: required
+    verificationProbe:
+      kind: file-and-metadata
+      requiredFiles: [SKILL.md]
+      manifestOptional: true
+      expectedCallName: web-access
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\web-access"
+        callName: web-access
+        agentCaveat: "调用前必须说明访问范围、登录态类型和本地残留文件。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\web-access"
+        callName: web-access
+        agentCaveat: "可映射到 Browser 能力；不得保存密码、cookie、token 或私密 HTML。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\web-access"
+        callName: web-access
+        agentCaveat: "动态页面或 cookies-from-browser 必须先经过用户确认。"
+  - canonicalName: pua
+    aliases: [PUA Skill, persuasion-audit, unsafe-persuasion]
+    capability: quarantined-pua
+    source:
+      kind: manual
+      path: manual-review-required/pua
+      url: manual-review-required
+    callName: pua
+    status: quarantined
+    verificationProbe:
+      kind: quarantine-policy
+      requiredFiles: [SKILL.md, SAFETY.md]
+      manifestOptional: true
+      expectedCallName: pua
+    installTargets:
+      - agent: Claude
+        path: "%USERPROFILE%\\.claude\\skills\\pua"
+        callName: pua
+        agentCaveat: "隔离候选，缺失不阻塞；不得默认调用。"
+      - agent: Codex
+        path: "%USERPROFILE%\\.codex\\skills\\pua"
+        callName: pua
+        agentCaveat: "隔离候选，缺失不阻塞；不得默认调用。"
+      - agent: Cursor
+        path: "%USERPROFILE%\\.cursor\\skills\\pua"
+        callName: pua
+        agentCaveat: "隔离候选，缺失不阻塞；不得默认调用。"

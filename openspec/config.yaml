@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  本仓库的 OpenSpec 产物、Skill 文档、README、references、tasks 等面向人的文档默认使用简体中文生成。
+  只有在用户明确要求英文或双语时，才生成英文或双语版本。
+  代码标识、命令、路径、配置键、API 名称、模型名、文件名和 OpenSpec 必需结构关键词保持原文。
+
+rules:
+  proposal:
+    - 使用简体中文撰写正文，保留必要的技术标识原文。
+    - 聚焦变更动机、范围、能力和影响，避免泛泛而谈。
+  design:
+    - 使用简体中文撰写正文，保留必要的技术标识原文。
+    - 明确目标、非目标、关键决策、取舍、迁移计划和未决问题。
+  specs:
+    - 使用简体中文撰写需求和场景正文。
+    - 保留 OpenSpec 解析所需的标题关键词，例如 ADDED Requirements、Requirement、Scenario、WHEN、THEN。
+  tasks:
+    - 使用简体中文撰写任务描述。
+    - 保持 OpenSpec 可追踪的 checkbox 格式：- [ ] X.Y 任务描述。

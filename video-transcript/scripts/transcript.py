@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+from datetime import datetime, timezone
+import importlib.util
 import json
 import math
 import os
@@ -54,11 +56,11 @@ def ensure_venv(update: bool) -> None:
         run([sys.executable, "-m", "venv", str(VENV_DIR)])
         update = True
 
-    probe = run([str(VENV_PYTHON), "-c", "import yt_dlp, openai"], check=False, capture=True)
+    probe = run([str(VENV_PYTHON), "-c", "import yt_dlp, openai, requests"], check=False, capture=True)
     if update or probe.returncode != 0:
         print("Installing/updating transcript dependencies...")
         run([str(VENV_PYTHON), "-m", "pip", "install", "-U", "pip"])
-        run([str(VENV_PYTHON), "-m", "pip", "install", "-U", "yt-dlp[default]", "openai"])
+        run([str(VENV_PYTHON), "-m", "pip", "install", "-U", "yt-dlp[default]", "openai", "requests"])
 
 
 def reexec_in_venv(args: list[str]) -> None:
@@ -68,6 +70,9 @@ def reexec_in_venv(args: list[str]) -> None:
         return
     update = "--update" in args
     ensure_venv(update)
+    if os.name == "nt":
+        result = run([str(VENV_PYTHON), str(Path(__file__).resolve()), *args], check=False)
+        raise SystemExit(result.returncode)
     os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(Path(__file__).resolve()), *args])
 
 
@@ -75,7 +80,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Create Markdown transcripts from video or playlist URLs.",
     )
-    parser.add_argument("urls", nargs="+", help="Video or playlist URLs to process")
+    parser.add_argument("urls", nargs="*", help="Video or playlist URLs to process")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Transcript output directory")
     parser.add_argument("--cookies-from-browser", help="Browser to load cookies from, e.g. chrome or safari")
     parser.add_argument(
@@ -116,8 +121,203 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--timestamps", action="store_true", help="Keep subtitle timestamps or chunk markers")
     parser.add_argument("--keep-audio", action="store_true", help="Keep intermediate audio files")
+    parser.add_argument("--dry-run", action="store_true", help="Inspect URLs and write summaries without downloading media or transcribing")
+    parser.add_argument("--doctor", action="store_true", help="Check local dependencies and environment without requiring URLs")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing transcript outputs; current default behavior is overwrite-compatible")
     parser.add_argument("--update", action="store_true", help="Update isolated dependencies before processing")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.doctor and not args.urls:
+        parser.error("the following arguments are required unless --doctor is used: urls")
+    return args
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def redact_url(value: str) -> str:
+    parsed = urlparse(value)
+    if parsed.scheme not in ("http", "https"):
+        return value
+    redacted = parsed._replace(query="<redacted>" if parsed.query else "", fragment="<redacted>" if parsed.fragment else "")
+    return redacted.geturl()
+
+
+def sanitize_argv(argv: list[str]) -> list[str]:
+    sanitized: list[str] = []
+    redact_next = False
+    for arg in argv:
+        option_name = arg.split("=", 1)[0].lower()
+        sensitive_option = any(token in option_name for token in ("key", "token", "secret", "password"))
+        if redact_next:
+            sanitized.append("<redacted>")
+            redact_next = False
+            continue
+        if sensitive_option:
+            if "=" in arg:
+                sanitized.append(arg.split("=", 1)[0] + "=<redacted>")
+            else:
+                sanitized.append(arg)
+                redact_next = True
+            continue
+        sanitized.append(redact_url(arg))
+    return sanitized
+
+
+def output_paths_for_video(video: dict[str, Any], output_root: Path) -> dict[str, str]:
+    video_dir = video_output_dir(video, output_root)
+    return {
+        "output_dir": str(video_dir),
+        "work_dir": str(video_dir / "_work"),
+        "original_path": str(video_dir / "original.md"),
+        "zh_path": str(video_dir / "zh.md"),
+        "metadata_path": str(video_dir / "metadata.json"),
+    }
+
+
+def make_video_summary(video: dict[str, Any], output_root: Path) -> dict[str, Any]:
+    paths = output_paths_for_video(video, output_root)
+    return {
+        "title": video.get("title"),
+        "id": video.get("id"),
+        "url": redact_url(str(video.get("_download_url") or video.get("webpage_url") or "")),
+        "status": "pending",
+        "backend": None,
+        "source": None,
+        "output_paths": paths,
+        "failures": [],
+        "uncertain": [],
+    }
+
+
+def summarize_outputs(video_dir: Path) -> list[str]:
+    outputs = [video_dir / "original.md", video_dir / "zh.md", video_dir / "metadata.json"]
+    return [str(path) for path in outputs if path.exists()]
+
+
+def existing_success(video_dir: Path) -> dict[str, Any] | None:
+    metadata_path = video_dir / "metadata.json"
+    original_path = video_dir / "original.md"
+    if not metadata_path.exists() or not original_path.exists():
+        return None
+    try:
+        if not original_path.read_text(encoding="utf-8").strip():
+            return None
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if metadata.get("status") in {"failed", "blocked"} or metadata.get("error"):
+        return None
+    return metadata
+
+
+def make_run_summary(args: argparse.Namespace, output_root: Path) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "tool": "video-transcript",
+        "status": "pending",
+        "started_at": utc_now(),
+        "finished_at": None,
+        "mode": "doctor" if args.doctor else "dry-run" if args.dry_run else "run",
+        "argv": sanitize_argv(sys.argv[1:]),
+        "cwd": str(Path.cwd()),
+        "requested_backend": args.transcribe_backend,
+        "backend": None,
+        "output_root": str(output_root),
+        "force": bool(args.force),
+        "items": [],
+        "output_paths": [],
+        "failures": [],
+        "uncertain": [],
+    }
+
+
+def write_summary_files(output_root: Path, summary: dict[str, Any]) -> None:
+    summary["finished_at"] = utc_now()
+    items = summary.get("items", [])
+    summary["output_paths"] = [
+        path
+        for item in items
+        for path in item.get("outputs_written", [])
+    ]
+    summary["failures"] = [
+        failure
+        for item in items
+        for failure in item.get("failures", [])
+    ] + summary.get("failures", [])
+    summary["uncertain"] = [
+        uncertain
+        for item in items
+        for uncertain in item.get("uncertain", [])
+    ] + summary.get("uncertain", [])
+    if summary["mode"] == "doctor":
+        summary["status"] = "blocked" if summary["failures"] else "ok"
+    elif summary["mode"] == "dry-run":
+        summary["status"] = "partial_failure" if summary["failures"] else "dry_run"
+    else:
+        summary["status"] = "partial_failure" if summary["failures"] else "success"
+    run_summary_path = output_root / "run-summary.json"
+    transcript_summary_path = output_root / "transcript-summary.json"
+    run_summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    transcript_summary = {
+        "schema_version": 1,
+        "generated_at": summary["finished_at"],
+        "mode": summary["mode"],
+        "cwd": summary["cwd"],
+        "requested_backend": summary["requested_backend"],
+        "backend": summary.get("backend"),
+        "output_root": summary["output_root"],
+        "items": items,
+        "output_paths": summary["output_paths"],
+        "failures": summary["failures"],
+        "uncertain": summary["uncertain"],
+    }
+    transcript_summary_path.write_text(
+        json.dumps(transcript_summary, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def check_python_module(name: str) -> dict[str, Any]:
+    spec = importlib.util.find_spec(name)
+    return {"name": name, "ok": spec is not None, "detail": "importable" if spec else "missing"}
+
+
+def doctor_report(args: argparse.Namespace, output_root: Path) -> tuple[int, dict[str, Any]]:
+    packages = [check_python_module(name) for name in ("yt_dlp", "openai", "requests")]
+    commands = [
+        {"name": name, "ok": shutil.which(name) is not None, "detail": "found" if shutil.which(name) else "missing"}
+        for name in ("yt-dlp", "ffmpeg", "ffprobe")
+    ]
+    env_names = ("OPENAI_API_KEY", "MOONSHOT_API_KEY", "MINIMAX_API_KEY", "MINIMAX_BASE_URL", "MINIMAX_API_BASE")
+    env = [{"name": name, "present": bool(os.environ.get(name))} for name in env_names]
+    checks = {
+        "python": sys.version.split()[0],
+        "executable": str(Path(sys.executable).resolve()),
+        "packages": packages,
+        "commands": commands,
+        "environment": env,
+    }
+    missing = [
+        f"package:{item['name']}" for item in packages if not item["ok"]
+    ] + [
+        f"command:{item['name']}" for item in commands if not item["ok"]
+    ]
+    status = 0 if not missing else 1
+    print(json.dumps(checks, ensure_ascii=False, indent=2))
+    return status, {
+        "title": "doctor",
+        "id": None,
+        "url": None,
+        "status": "success" if status == 0 else "failed",
+        "backend": args.transcribe_backend,
+        "source": "doctor",
+        "output_paths": {"output_root": str(output_root)},
+        "outputs_written": [],
+        "checks": checks,
+        "failures": missing,
+        "uncertain": [],
+    }
 
 
 def ytdlp_base(args: argparse.Namespace) -> list[str]:
@@ -750,11 +950,41 @@ def write_metadata(video_dir: Path, metadata: dict[str, Any]) -> None:
     )
 
 
-def process_video(video: dict[str, Any], output_root: Path, args: argparse.Namespace) -> bool:
+def dry_run_video(video: dict[str, Any], output_root: Path, args: argparse.Namespace) -> dict[str, Any]:
+    summary = make_video_summary(video, output_root)
+    original_lang = choose_original_subtitle(video)
+    zh_lang = choose_zh_subtitle(video)
+    if original_lang:
+        summary["status"] = "would_process"
+        summary["backend"] = "subtitle"
+        summary["source"] = f"human_subtitle ({original_lang})"
+        summary["original_language"] = original_lang
+        summary["zh_language"] = zh_lang
+        summary["uncertain"].append("dry-run did not download subtitle files or verify transcript text")
+        return summary
+
+    try:
+        backend = choose_transcribe_backend(args)
+        summary["status"] = "would_process"
+        summary["backend"] = backend
+        summary["source"] = f"{backend}_transcription"
+        summary["uncertain"].append("dry-run did not download media, upload API payloads, or transcribe")
+    except Exception as exc:
+        summary["status"] = "uncertain"
+        summary["backend"] = args.transcribe_backend
+        summary["uncertain"].append(str(exc))
+    return summary
+
+
+def process_video(video: dict[str, Any], output_root: Path, args: argparse.Namespace) -> dict[str, Any]:
+    summary = make_video_summary(video, output_root)
     url = video.get("_download_url")
     if not url:
-        print(f"Skipping item without URL: {video.get('title') or video.get('id')}", file=sys.stderr)
-        return False
+        message = f"Skipping item without URL: {video.get('title') or video.get('id')}"
+        print(message, file=sys.stderr)
+        summary["status"] = "failed"
+        summary["failures"].append(message)
+        return summary
 
     video_dir = video_output_dir(video, output_root)
     work_dir = video_dir / "_work"
@@ -763,21 +993,37 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
 
     original_path = video_dir / "original.md"
     zh_path = video_dir / "zh.md"
+    if not args.force:
+        existing = existing_success(video_dir)
+        if existing:
+            summary["status"] = "skipped"
+            summary["source"] = existing.get("source")
+            summary["metadata"] = existing
+            summary["outputs_written"] = summarize_outputs(video_dir)
+            summary["uncertain"].append("Existing successful transcript was reused; use --force to overwrite.")
+            if existing.get("needs_zh_translation") and not zh_path.exists():
+                summary["uncertain"].append(f"Chinese translation still needed: {zh_path}")
+            return summary
+
     metadata: dict[str, Any] = {
         "title": video.get("title"),
         "id": video.get("id"),
+        "video_id": video.get("id"),
         "url": url,
         "original_path": str(original_path),
         "zh_path": str(zh_path),
         "source": None,
         "original_language": None,
         "needs_zh_translation": False,
+        "status": "pending",
     }
 
     try:
         original_lang = choose_original_subtitle(video)
         zh_lang = choose_zh_subtitle(video)
         if original_lang:
+            summary["backend"] = "subtitle"
+            summary["source"] = f"human_subtitle ({original_lang})"
             subtitle_file = download_subtitle(str(url), original_lang, work_dir, args)
             if not subtitle_file:
                 raise RuntimeError(f"Could not download selected subtitle: {original_lang}")
@@ -809,6 +1055,7 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
                     metadata["needs_zh_translation"] = False
         else:
             backend = choose_transcribe_backend(args)
+            summary["backend"] = backend
             if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
                 raise RuntimeError("ffmpeg and ffprobe are required for transcription fallback.")
             if backend in ("openai", "minimax-api"):
@@ -852,6 +1099,7 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
                     metadata["zh_source"] = f"kimi_translation ({args.kimi_model})"
                     metadata["needs_zh_translation"] = False
 
+        metadata["status"] = "success"
         write_metadata(video_dir, metadata)
         if not args.keep_audio:
             shutil.rmtree(work_dir, ignore_errors=True)
@@ -860,14 +1108,25 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
             print(f"Chinese transcript written: {zh_path}")
         elif metadata["needs_zh_translation"]:
             print(f"Chinese translation needed: {zh_path}")
-        return True
+            summary["uncertain"].append(f"Chinese translation still needed: {zh_path}")
+        summary["status"] = "success"
+        summary["source"] = metadata.get("source") or summary.get("source")
+        summary["metadata"] = metadata
+        summary["outputs_written"] = summarize_outputs(video_dir)
+        return summary
     except Exception as exc:
         metadata["error"] = str(exc)
+        metadata["status"] = "failed"
         write_metadata(video_dir, metadata)
         if not args.keep_audio:
             shutil.rmtree(work_dir, ignore_errors=True)
         print(f"Failed: {video.get('title') or url}: {exc}", file=sys.stderr)
-        return False
+        summary["status"] = "failed"
+        summary["source"] = metadata.get("source") or summary.get("source")
+        summary["metadata"] = metadata
+        summary["outputs_written"] = summarize_outputs(video_dir)
+        summary["failures"].append(str(exc))
+        return summary
 
 
 def main() -> int:
@@ -876,18 +1135,49 @@ def main() -> int:
 
     output_root = Path(args.output_dir).expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
+    run_summary = make_run_summary(args, output_root)
+
+    if args.doctor:
+        status, item = doctor_report(args, output_root)
+        run_summary["items"].append(item)
+        run_summary["backend"] = args.transcribe_backend
+        write_summary_files(output_root, run_summary)
+        print(f"\nDoctor summary written: {output_root / 'run-summary.json'}")
+        return status
 
     failures = 0
     for url in args.urls:
         info = fetch_info(url, args)
         if not info:
             failures += 1
+            run_summary["items"].append(
+                {
+                    "title": None,
+                    "id": None,
+                    "url": redact_url(url),
+                    "status": "failed",
+                    "backend": args.transcribe_backend,
+                    "source": "yt_dlp_metadata",
+                    "output_paths": {},
+                    "outputs_written": [],
+                    "failures": [f"Failed to inspect URL: {redact_url(url)}"],
+                    "uncertain": [],
+                }
+            )
             continue
         for video in iter_videos(info, url):
-            if not process_video(video, output_root, args):
+            item = dry_run_video(video, output_root, args) if args.dry_run else process_video(video, output_root, args)
+            run_summary["items"].append(item)
+            if item.get("status") == "failed":
                 failures += 1
+    backends = sorted({str(item.get("backend")) for item in run_summary["items"] if item.get("backend")})
+    run_summary["backend"] = backends[0] if len(backends) == 1 else "mixed" if backends else args.transcribe_backend
+    write_summary_files(output_root, run_summary)
 
-    print(f"\nDone. Transcript folders are in: {output_root}")
+    if args.dry_run:
+        print(f"\nDry run complete. Summaries are in: {output_root}")
+    else:
+        print(f"\nDone. Transcript folders are in: {output_root}")
     return 1 if failures else 0
 
 

@@ -1,105 +1,94 @@
 ---
 name: video-transcript
-description: Use this skill when the user provides one or more video or playlist URLs and wants a written transcript, talk script, lecture notes, or bilingual transcript document. It prefers existing human subtitles, falls back to OpenAI audio transcription, Kimi video transcription, or MiniMax API transcription when subtitles are missing, writes Markdown transcript files, and can create a Chinese version when the original language is not Chinese.
+description: 当用户提供一个或多个视频或播放列表 URL，并希望生成转写稿、口播稿、讲义、双语文档或后续富格式材料时使用。默认优先使用人工字幕，缺字幕时再按确认流程降级到 OpenAI、Kimi 或 MiniMax 转写。
 ---
 
 # Video Transcript
 
-## Overview
+从视频或播放列表 URL 生成 Markdown 转写文档。默认优先使用人工字幕，因为它最快、成本最低、隐私风险也最小；只有字幕不可用或用户明确要求时，才进入音视频下载和 API 转写路径。
 
-Create Markdown transcript documents from video or playlist URLs. Prefer existing human subtitles because they are fast and free; if no human subtitle is available, use a configured transcription fallback.
+## 默认流程
 
-## Default Workflow
+在本 skill 目录运行：
 
-Run the helper from this skill directory:
-
-```bash
+```powershell
 python scripts/transcript.py "VIDEO_OR_PLAYLIST_URL"
 ```
 
-For multiple URLs, pass them in one command:
+多个 URL 可以一次传入：
 
-```bash
+```powershell
 python scripts/transcript.py "URL_1" "URL_2"
 ```
 
-The script creates and maintains an isolated `.venv` inside the skill directory, then installs or updates `yt-dlp[default]` and `openai`. Transcript outputs go to `~/Documents/video-transcripts` unless the user asks for another location.
+默认输出到 `~/Documents/video-transcripts`。脚本会在 skill 目录内维护独立 `.venv`。
 
-## Transcript Policy
+## 快速策略
 
-- Use human subtitles first; do not use platform-generated automatic subtitles by default.
-- If human subtitles exist, convert them into a clean `original.md`.
-- If no human subtitles exist, use `--transcribe-backend auto`: OpenAI audio transcription when `OPENAI_API_KEY` exists, otherwise Kimi video transcription when `MOONSHOT_API_KEY` exists, otherwise MiniMax API transcription when `MINIMAX_API_KEY` exists.
-- Default OpenAI transcription model is `gpt-4o-mini-transcribe`; use `--transcribe-model gpt-4o-transcribe` when the user prioritizes accuracy.
-- Default Kimi model is `kimi-k2.6`; Kimi video transcription uses multimodal video understanding, not a dedicated ASR endpoint, so prefer human subtitles or OpenAI ASR when exact wording matters.
-- Kimi/Moonshot keys can belong to different regions. The script auto-probes `https://api.moonshot.ai/v1` and `https://api.moonshot.cn/v1`; set `MOONSHOT_BASE_URL` explicitly if the user has a known endpoint.
-- MiniMax API transcription uses `MINIMAX_API_KEY`, `MINIMAX_BASE_URL`, `MINIMAX_TRANSCRIBE_URL`, and `MINIMAX_ASR_MODEL`. The default base URL is the China endpoint `https://api.minimaxi.com/v1`; global keys should use `https://api.minimax.io/v1`. The default ASR endpoint is `{MINIMAX_BASE_URL}/audio/transcriptions`.
-- Ask transcription backends to preserve spoken math, equations, variables, symbols, and units as Markdown LaTeX: inline math as `$...$` and display equations as `$$...$$`.
-- Preserve original audio quality where possible. Only when the upload would exceed the safe 24 MB threshold should the script split audio; if split chunks are still too large, compress to speech-friendly mono audio.
-- If the original transcript is non-Chinese and `MOONSHOT_API_KEY` exists, the script translates `original.md` into natural Chinese with Kimi and saves `zh.md`; otherwise Codex should translate it after the script exits.
-- For playlists, process each video into its own directory and continue after individual failures.
-- Never write API keys into the Skill files. Read `OPENAI_API_KEY`, `MOONSHOT_API_KEY`, or `MINIMAX_API_KEY` from the local environment.
+- 优先使用人工字幕；默认不使用平台自动生成字幕。
+- 字幕不可用时，`--transcribe-backend auto` 按可见配置选择 OpenAI、Kimi video、MiniMax API。
+- 数学内容保留为 Markdown LaTeX：`$...$` 和 `$$...$$`。
+- 任何 API key、cookie、token、session value 都不得写入 skill 文件、日志或 summary。
+- 涉及登录、浏览器 cookie、付费 API、隐私敏感上传或大型播放列表时，先给出短计划并等待确认。
+- 普通公开视频的 Markdown 转写请求可以直接执行，不强制进入重型多阶段 checkpoint。
+- 默认只生成 Markdown；用户确认后才生成 HTML、PPTX、Word/DOCX 或 PDF。初始请求已明确指定格式时，不为格式选择二次暂停。
+- 富格式输出涉及公式、Frontend Design 或 anchor 样张时，按 reference map 读取对应规范，并把 fallback、QA 证据和跳过理由写入运行摘要或 run-manifest。
 
-## MiniMax API Configuration
+## 常用选项
 
-Use MiniMax API explicitly:
-
-```bash
-python scripts/transcript.py --transcribe-backend minimax-api "VIDEO_OR_PLAYLIST_URL"
+```powershell
+python scripts/transcript.py --output-dir "D:\transcripts" "URL"
+python scripts/transcript.py --timestamps "URL"
+python scripts/transcript.py --transcribe-backend openai "URL"
+python scripts/transcript.py --transcribe-backend minimax-api "URL"
+python scripts/transcript.py --cookies-from-browser chrome "URL"
+python scripts/transcript.py --doctor
+python scripts/transcript.py --dry-run "URL"
+python scripts/transcript.py --force "URL"
 ```
 
-Set the API key locally. Do not commit it:
+`--doctor` 只诊断本地依赖和可见配置，不处理媒体。`--dry-run` 预览 metadata、候选后端、输出路径和风险，不下载媒体、不上传 API。`--force` 表示允许覆盖或重跑已有成功产物，使用前需要确认覆盖风险。
 
-```bash
-export MINIMAX_API_KEY="..."
-python scripts/transcript.py --transcribe-backend minimax-api "VIDEO_OR_PLAYLIST_URL"
-```
+## 输出契约
 
-Optional configuration:
+每个视频写入独立目录，典型产物包括：
 
-- `MINIMAX_BASE_URL` or `--minimax-base-url`: API base URL, default `https://api.minimaxi.com/v1` for China keys. Use `https://api.minimax.io/v1` for global keys.
-- `MINIMAX_TRANSCRIBE_URL` or `--minimax-transcribe-url`: full ASR endpoint URL, default `{base}/audio/transcriptions`.
-- `MINIMAX_ASR_MODEL` or `--minimax-model`: ASR model name, default `speech-2.8-turbo`.
-- `TRANSCRIBE_LANGUAGE` or `--transcribe-language`: optional language hint.
-- `TRANSCRIPTION_PROMPT` or `--transcription-prompt`: transcription prompt. The default prompt includes math-formula preservation rules.
+- `original.md`：原始语言转写稿。
+- `zh.md`：需要中文稿或翻译已完成时生成。
+- `metadata.json`：每个视频的事实源，记录标题、URL、来源、语言、输出路径、翻译状态和错误。
+- `run-summary.json`：批量运行或显式 summary 运行的聚合事实源。
 
-MiniMax's public docs currently emphasize text generation, TTS, and file management rather than a dedicated ASR page, so keep `MINIMAX_TRANSCRIBE_URL` configurable if the account uses a custom or proxy ASR endpoint.
+运行后先检查 `metadata.json`。如果 `needs_zh_translation` 为 `true`，再忠实翻译 `original.md`，并把 `zh.md` 写到 metadata 记录的路径。
 
-## Options
+## 引用地图
 
-Use these script options when the user asks for a variation:
+只有请求需要细节时才继续读取：
 
-- `--output-dir PATH` saves files somewhere other than `~/Documents/video-transcripts`.
-- `--cookies-from-browser BROWSER` loads cookies from a browser such as `chrome`, `safari`, `firefox`, or `edge`.
-- `--transcribe-backend auto|openai|kimi-video|minimax-api` chooses the no-subtitle fallback.
-- `--transcribe-model MODEL` changes the OpenAI transcription model.
-- `--kimi-model MODEL` changes the Kimi/Moonshot model, default `kimi-k2.6`.
-- `--minimax-base-url URL` changes the MiniMax API base URL.
-- `--minimax-transcribe-url URL` changes the full MiniMax ASR endpoint URL.
-- `--minimax-model MODEL` changes the MiniMax ASR model. `MINIMAX_ASR_MODEL` is the preferred environment-variable equivalent.
-- `--transcribe-language LANG` passes a language hint to supported backends. `TRANSCRIBE_LANGUAGE` is the environment-variable equivalent.
-- `--transcription-prompt PROMPT` overrides the default transcription prompt, including math formula formatting requirements.
-- `--timestamps` keeps subtitle cue timestamps or part markers in the transcript.
-- `--keep-audio` preserves intermediate audio files.
-- `--update` updates isolated dependencies before processing.
+- [`references/BACKENDS.md`](references/BACKENDS.md)：字幕、OpenAI、Kimi、MiniMax 的 fallback 策略。
+- [`references/OUTPUT-CONTRACT.md`](references/OUTPUT-CONTRACT.md)：文件、metadata 字段、summary schema 和状态 token。
+- [`references/CHECKS.md`](references/CHECKS.md)：checkpoint、doctor/dry-run、自检、重试、force、reviewer handoff 和反馈回流。
+- [`references/WEB-ACCESS.md`](references/WEB-ACCESS.md)：网页登录、cookie、动态页面或浏览器交互的确认模板、安全边界、结果交接和脱敏记录。
+- [`references/CONTENT-PLAN.md`](references/CONTENT-PLAN.md)：复杂摘要、讲义、课件和富格式导出前的 `content-plan.md` 触发条件、结构、自检和示例入口。
+- [`references/FORMATS-AND-MATH.md`](references/FORMATS-AND-MATH.md)：多格式输出选择、公式渲染策略、PDF 派生和 run-manifest 记录要求。
+- [`references/DESIGN-AND-ANCHOR.md`](references/DESIGN-AND-ANCHOR.md)：Frontend Design checkpoint、设计 brief、富格式 anchor、渲染 QA 和可跳过边界。
+- [`references/ASSETS-SCREENSHOTS.md`](references/ASSETS-SCREENSHOTS.md)：截图候选、确认后抓取/导入、跳过降级、素材 schema、placeholder/code-drawn/AI 生成素材反伪规则。
+- [`references/RUN-MANIFEST.md`](references/RUN-MANIFEST.md)：富格式 `run-manifest.json` schema、dry-run 闸门、退化菜单、续跑/force/只重试失败项和完成汇报模板。
+- [`references/FEEDBACK-AND-PARALLEL.md`](references/FEEDBACK-AND-PARALLEL.md)：用户反馈回流、reviewer handoff、并行写入隔离，以及中途追加或撤销格式/截图/设计选择。
+- [`references/TROUBLESHOOTING.md`](references/TROUBLESHOOTING.md)：后端、endpoint、cookie、公式和媒体提取问题。
 
-## After Running
+## 可选检查点摘要
 
-Inspect each video's `metadata.json`:
+- Web Access：网站需要登录、cookie、动态页面、浏览器交互或 `--cookies-from-browser` 时，先按 Web Access checkpoint 确认；用户拒绝时只使用公开可访问资料或汇报无法完成的部分。
+- Content plan：复杂摘要、讲义、课件、长视频内容重构，或用户要求 HTML/PPTX/Word/DOCX/PDF 等富格式导出时，转写后生成用户可编辑的 `content-plan.md`。
+- 默认轻量路径：普通公开视频 Markdown 转写不强制生成 `content-plan.md`，也不在转写后主动打断用户要求截图确认；只在完成汇报中提示这些能力可作为后续增强。
 
-- If `needs_zh_translation` is `false`, the script already produced every requested document.
-- If `needs_zh_translation` is `true`, read `original.md`, translate it faithfully into Chinese, and write `zh.md` to the `zh_path` shown in metadata.
-- Keep the Markdown structure simple: title, source metadata, then transcript text. Do not invent content missing from the original.
+## 完成检查
 
-## Troubleshooting
-
-- If no subtitle exists and neither `OPENAI_API_KEY` nor `MOONSHOT_API_KEY` is set, check whether `MINIMAX_API_KEY` is configured.
-- If MiniMax API returns 401, verify that the key region matches the base URL: China keys use `https://api.minimaxi.com/v1`; global keys use `https://api.minimax.io/v1`.
-- If MiniMax API returns 404 or model errors, verify `MINIMAX_TRANSCRIBE_URL` and `MINIMAX_ASR_MODEL`; MiniMax's public docs may not expose a universal ASR endpoint for every account.
-- If formulas are misrecognized, rerun with `--transcription-prompt` containing the domain-specific notation, such as common variable names, theorem names, or expected equation forms.
-- If Kimi returns authentication errors, test whether the key belongs to the `.cn` or `.ai` endpoint and set `MOONSHOT_BASE_URL` if needed.
-- If the user pasted an API key into chat, advise rotating it and setting it locally as an environment variable instead of storing it in the Skill.
-- If a site requires login, retry with `--cookies-from-browser chrome` or the browser the user is signed into.
-- If media extraction, compression, or splitting fails, ensure `ffmpeg` and `ffprobe` are installed and available in `PATH`.
-- If a site recently changed behavior, retry with `--update`.
-- Do not suggest bypassing DRM-protected content.
+- 每个已处理视频都有可解析的 `metadata.json`。
+- 成功项的 `original.md` 存在且非空。
+- metadata 说明中文稿已完成时，`zh.md` 存在。
+- 非 Markdown 格式只有在用户已指定或已确认后生成；对应 anchor、公式 fallback、设计自检和渲染 QA 证据已记录。
+- 如果进入 Web Access、截图、素材、多格式、设计或富格式 QA 阶段，产物目录必须有 `run-manifest.json`，并通过对应 reference 的 checkpoint 摘要自检。
+- 默认公开视频 Markdown 转写不因这些富格式 checkpoint 被强制打断；只有登录、外发、付费、截图、多格式、设计或覆盖风险触发确认。
+- 汇报输出路径、失败/跳过项、警告和下一步动作。
+- 可恢复且安全的失败先重试，再汇报结果。

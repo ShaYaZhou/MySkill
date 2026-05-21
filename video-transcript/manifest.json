@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "video-transcript",
+  "version": "0.1.0",
+  "category": "video",
+  "description": "从视频或播放列表生成 Markdown 转写稿，并可按需降级到 API 转写。",
+  "compat": [
+    "claude-code",
+    "claude-ai",
+    "cursor",
+    "codex-cli",
+    "mavis"
+  ],
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "yt-dlp[default]",
+      "openai",
+      "requests"
+    ],
+    "optional_binaries": [
+      "ffmpeg",
+      "ffprobe"
+    ],
+    "optional_env": [
+      "OPENAI_API_KEY",
+      "MOONSHOT_API_KEY",
+      "MINIMAX_API_KEY",
+      "MOONSHOT_BASE_URL",
+      "MINIMAX_BASE_URL",
+      "MINIMAX_TRANSCRIBE_URL",
+      "MINIMAX_ASR_MODEL"
+    ]
+  },
+  "default_output_dir": "~/Documents/video-transcripts"
+}

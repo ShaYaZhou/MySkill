@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "name": "yt-dlp-download",
+  "version": "0.1.0",
+  "category": "video-download",
+  "description": "用 yt-dlp 下载视频、音频、人工字幕和缩略图，并生成机器可读 summary。",
+  "compat": [
+    "claude-code",
+    "claude-ai",
+    "cursor",
+    "codex-cli",
+    "mavis"
+  ],
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "yt-dlp[default]"
+    ],
+    "optional_binaries": [
+      "ffmpeg",
+      "ffprobe"
+    ]
+  },
+  "default_output_dir": "~/Downloads/yt-dlp"
+}

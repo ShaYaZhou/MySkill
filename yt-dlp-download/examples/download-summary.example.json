@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "tool": "yt-dlp-download",
+  "status": "ok",
+  "started_at": "2026-01-01T00:00:00Z",
+  "completed_at": "2026-01-01T00:01:00Z",
+  "cwd": "D:/git/MySkill/yt-dlp-download",
+  "argv": [
+    "scripts/download.py",
+    "--dry-run",
+    "https://example.invalid/watch?v=abc123"
+  ],
+  "yt_dlp_version": "2026.01.01",
+  "ffmpeg": "present",
+  "output_dir": "C:/Users/example/Downloads/yt-dlp",
+  "items": [
+    {
+      "url": "https://example.invalid/watch?v=abc123",
+      "id": "abc123",
+      "title": "示例视频标题",
+      "status": "ok",
+      "media_paths": [
+        "C:/Users/example/Downloads/yt-dlp/示例视频标题 [abc123].mp4"
+      ],
+      "subtitle_paths": [
+        "C:/Users/example/Downloads/yt-dlp/示例视频标题 [abc123].zh-Hans.vtt"
+      ],
+      "thumbnail_path": "C:/Users/example/Downloads/yt-dlp/示例视频标题 [abc123].jpg",
+      "archive_skip": false,
+      "path_state": "confirmed",
+      "warnings": []
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    "示例文件只说明契约，不代表真实产物"
+  ]
+}
