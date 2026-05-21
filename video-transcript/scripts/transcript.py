@@ -26,7 +26,9 @@ DEFAULT_OUTPUT_DIR = Path("~/Documents/video-transcripts").expanduser()
 SAFE_UPLOAD_BYTES = 24 * 1024 * 1024
 KIMI_SAFE_VIDEO_BYTES = 70 * 1024 * 1024
 MOONSHOT_BASE_URLS = ("https://api.moonshot.ai/v1", "https://api.moonshot.cn/v1")
-MINIMAX_BASE_URL = "https://api.minimax.io/v1"
+MINIMAX_CN_BASE_URL = "https://api.minimaxi.com/v1"
+MINIMAX_GLOBAL_BASE_URL = "https://api.minimax.io/v1"
+MINIMAX_BASE_URL = MINIMAX_CN_BASE_URL
 ZH_PATTERNS = ("zh", "zh-*", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW")
 ORIGINAL_LANG_PREFERENCE = ("en", "en-*", "ja", "ja-*", "ko", "ko-*", "fr", "de", "es", "pt", "it")
 DEFAULT_TRANSCRIPTION_PROMPT = (
@@ -87,7 +89,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--minimax-base-url",
         default=os.environ.get("MINIMAX_BASE_URL") or os.environ.get("MINIMAX_API_BASE") or MINIMAX_BASE_URL,
-        help="MiniMax API base URL. Defaults to https://api.minimax.io/v1",
+        help=(
+            "MiniMax API base URL. Defaults to domestic China endpoint https://api.minimaxi.com/v1. "
+            "Use https://api.minimax.io/v1 for global keys."
+        ),
     )
     parser.add_argument(
         "--minimax-transcribe-url",

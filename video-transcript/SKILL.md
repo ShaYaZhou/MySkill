@@ -33,7 +33,7 @@ The script creates and maintains an isolated `.venv` inside the skill directory,
 - Default OpenAI transcription model is `gpt-4o-mini-transcribe`; use `--transcribe-model gpt-4o-transcribe` when the user prioritizes accuracy.
 - Default Kimi model is `kimi-k2.6`; Kimi video transcription uses multimodal video understanding, not a dedicated ASR endpoint, so prefer human subtitles or OpenAI ASR when exact wording matters.
 - Kimi/Moonshot keys can belong to different regions. The script auto-probes `https://api.moonshot.ai/v1` and `https://api.moonshot.cn/v1`; set `MOONSHOT_BASE_URL` explicitly if the user has a known endpoint.
-- MiniMax API transcription uses `MINIMAX_API_KEY`, `MINIMAX_BASE_URL`, `MINIMAX_TRANSCRIBE_URL`, and `MINIMAX_ASR_MODEL`. The default endpoint is OpenAI-compatible: `{MINIMAX_BASE_URL}/audio/transcriptions`.
+- MiniMax API transcription uses `MINIMAX_API_KEY`, `MINIMAX_BASE_URL`, `MINIMAX_TRANSCRIBE_URL`, and `MINIMAX_ASR_MODEL`. The default base URL is the China endpoint `https://api.minimaxi.com/v1`; global keys should use `https://api.minimax.io/v1`. The default ASR endpoint is `{MINIMAX_BASE_URL}/audio/transcriptions`.
 - Ask transcription backends to preserve spoken math, equations, variables, symbols, and units as Markdown LaTeX: inline math as `$...$` and display equations as `$$...$$`.
 - Preserve original audio quality where possible. Only when the upload would exceed the safe 24 MB threshold should the script split audio; if split chunks are still too large, compress to speech-friendly mono audio.
 - If the original transcript is non-Chinese and `MOONSHOT_API_KEY` exists, the script translates `original.md` into natural Chinese with Kimi and saves `zh.md`; otherwise Codex should translate it after the script exits.
@@ -57,7 +57,7 @@ python scripts/transcript.py --transcribe-backend minimax-api "VIDEO_OR_PLAYLIST
 
 Optional configuration:
 
-- `MINIMAX_BASE_URL` or `--minimax-base-url`: API base URL, default `https://api.minimax.io/v1`.
+- `MINIMAX_BASE_URL` or `--minimax-base-url`: API base URL, default `https://api.minimaxi.com/v1` for China keys. Use `https://api.minimax.io/v1` for global keys.
 - `MINIMAX_TRANSCRIBE_URL` or `--minimax-transcribe-url`: full ASR endpoint URL, default `{base}/audio/transcriptions`.
 - `MINIMAX_ASR_MODEL` or `--minimax-model`: ASR model name, default `speech-2.8-turbo`.
 - `TRANSCRIBE_LANGUAGE` or `--transcribe-language`: optional language hint.
@@ -94,6 +94,7 @@ Inspect each video's `metadata.json`:
 ## Troubleshooting
 
 - If no subtitle exists and neither `OPENAI_API_KEY` nor `MOONSHOT_API_KEY` is set, check whether `MINIMAX_API_KEY` is configured.
+- If MiniMax API returns 401, verify that the key region matches the base URL: China keys use `https://api.minimaxi.com/v1`; global keys use `https://api.minimax.io/v1`.
 - If MiniMax API returns 404 or model errors, verify `MINIMAX_TRANSCRIBE_URL` and `MINIMAX_ASR_MODEL`; MiniMax's public docs may not expose a universal ASR endpoint for every account.
 - If formulas are misrecognized, rerun with `--transcription-prompt` containing the domain-specific notation, such as common variable names, theorem names, or expected equation forms.
 - If Kimi returns authentication errors, test whether the key belongs to the `.cn` or `.ai` endpoint and set `MOONSHOT_BASE_URL` if needed.
