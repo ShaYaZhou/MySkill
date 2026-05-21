@@ -6,7 +6,7 @@ Personal AI skill repository for Claude, Codex, Cursor, and Mavis.
 
 | Skill | Purpose |
 | --- | --- |
-| `video-transcript` | Create Markdown transcript documents from video or playlist URLs. It prefers human subtitles and can fall back to OpenAI, Kimi, or a configured MiniMax CLI command. |
+| `video-transcript` | Create Markdown transcript documents from video or playlist URLs. It prefers human subtitles and can fall back to OpenAI, Kimi, or MiniMax API transcription, with math-formula transcription hints. |
 | `yt-dlp-download` | Download videos, human subtitles, and thumbnails with `yt-dlp`, including playlist support and browser-cookie retries. |
 
 ## Install Targets

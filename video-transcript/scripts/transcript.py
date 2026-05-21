@@ -9,7 +9,6 @@ import json
 import math
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -27,12 +26,13 @@ DEFAULT_OUTPUT_DIR = Path("~/Documents/video-transcripts").expanduser()
 SAFE_UPLOAD_BYTES = 24 * 1024 * 1024
 KIMI_SAFE_VIDEO_BYTES = 70 * 1024 * 1024
 MOONSHOT_BASE_URLS = ("https://api.moonshot.ai/v1", "https://api.moonshot.cn/v1")
+MINIMAX_BASE_URL = "https://api.minimax.io/v1"
 ZH_PATTERNS = ("zh", "zh-*", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW")
 ORIGINAL_LANG_PREFERENCE = ("en", "en-*", "ja", "ja-*", "ko", "ko-*", "fr", "de", "es", "pt", "it")
-DEFAULT_MINIMAX_CLI_COMMANDS = (
-    "mmx speech transcribe --audio {audio} --out {output}",
-    "minimax speech transcribe --audio {audio} --out {output}",
-    "minimax-cli speech transcribe --audio {audio} --out {output}",
+DEFAULT_TRANSCRIPTION_PROMPT = (
+    "Create a faithful transcript in the original language. Preserve spoken math, equations, "
+    "variables, symbols, and units as Markdown LaTeX when possible: inline math as $...$ and "
+    "display equations as $$...$$. Do not summarize, paraphrase, or add content that was not spoken."
 )
 
 
@@ -78,30 +78,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cookies-from-browser", help="Browser to load cookies from, e.g. chrome or safari")
     parser.add_argument(
         "--transcribe-backend",
-        choices=("auto", "openai", "kimi-video", "minimax-cli"),
+        choices=("auto", "openai", "kimi-video", "minimax-api"),
         default="auto",
         help="Fallback backend when no human subtitles are available",
     )
     parser.add_argument("--transcribe-model", default="gpt-4o-mini-transcribe", help="OpenAI transcription model")
     parser.add_argument("--kimi-model", default="kimi-k2.6", help="Kimi/Moonshot model for video transcript or translation")
     parser.add_argument(
-        "--minimax-cli-command",
-        default=os.environ.get("MINIMAX_CLI_COMMAND"),
-        help=(
-            "MiniMax CLI transcript command template. It may print transcript text to stdout "
-            "or write it to {output}. Placeholders: {audio}, {output}, {model}, {language}, "
-            "{part_index}, {part_count}. JSON-array form is also supported."
-        ),
+        "--minimax-base-url",
+        default=os.environ.get("MINIMAX_BASE_URL") or os.environ.get("MINIMAX_API_BASE") or MINIMAX_BASE_URL,
+        help="MiniMax API base URL. Defaults to https://api.minimax.io/v1",
+    )
+    parser.add_argument(
+        "--minimax-transcribe-url",
+        default=os.environ.get("MINIMAX_TRANSCRIBE_URL"),
+        help="Full MiniMax-compatible audio transcription endpoint URL. Defaults to {base}/audio/transcriptions.",
     )
     parser.add_argument(
         "--minimax-model",
-        default=os.environ.get("MINIMAX_MODEL", ""),
-        help="Optional MiniMax model name passed to {model} in --minimax-cli-command",
+        default=os.environ.get("MINIMAX_ASR_MODEL") or os.environ.get("MINIMAX_MODEL") or "speech-2.8-turbo",
+        help="MiniMax ASR model name. MINIMAX_ASR_MODEL is the preferred environment variable.",
     )
     parser.add_argument(
         "--transcribe-language",
         default=os.environ.get("TRANSCRIBE_LANGUAGE", ""),
-        help="Optional language hint passed to {language} in --minimax-cli-command",
+        help="Optional transcription language hint passed to supported backends.",
+    )
+    parser.add_argument(
+        "--transcription-prompt",
+        default=os.environ.get("TRANSCRIPTION_PROMPT", DEFAULT_TRANSCRIPTION_PROMPT),
+        help="Prompt/hint sent to transcription backends, including math formula formatting requirements.",
     )
     parser.add_argument("--timestamps", action="store_true", help="Keep subtitle timestamps or chunk markers")
     parser.add_argument("--keep-audio", action="store_true", help="Keep intermediate audio files")
@@ -517,7 +523,7 @@ def prepare_audio_parts(audio_path: Path, work_dir: Path) -> list[Path]:
     return parts
 
 
-def transcribe_audio(parts: list[Path], model: str, keep_timestamps: bool) -> str:
+def transcribe_audio(parts: list[Path], args: argparse.Namespace) -> str:
     if not os.environ.get("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY is required when no human subtitles are available.")
 
@@ -527,90 +533,25 @@ def transcribe_audio(parts: list[Path], model: str, keep_timestamps: bool) -> st
     blocks: list[str] = []
     for index, part in enumerate(parts, start=1):
         print(f"Transcribing audio part {index}/{len(parts)}: {part.name}")
+        request: dict[str, Any] = {
+            "model": args.transcribe_model,
+            "response_format": "json",
+            "prompt": args.transcription_prompt,
+        }
+        if args.transcribe_language:
+            request["language"] = args.transcribe_language
         with part.open("rb") as audio_file:
-            result = client.audio.transcriptions.create(
-                model=model,
-                file=audio_file,
-                response_format="json",
-            )
+            result = client.audio.transcriptions.create(file=audio_file, **request)
         text = getattr(result, "text", "") or (result.get("text", "") if isinstance(result, dict) else "")
         text = text.strip()
-        if keep_timestamps and len(parts) > 1:
+        if args.timestamps and len(parts) > 1:
             blocks.append(f"### Part {index}\n\n{text}")
         elif text:
             blocks.append(text)
     return "\n\n".join(blocks).strip()
 
 
-def minimax_cli_available(args: argparse.Namespace) -> bool:
-    if args.minimax_cli_command:
-        return True
-    return any(shutil.which(command.split()[0]) for command in DEFAULT_MINIMAX_CLI_COMMANDS)
-
-
-def resolve_minimax_cli_command(args: argparse.Namespace) -> str:
-    if args.minimax_cli_command:
-        return args.minimax_cli_command
-    for command in DEFAULT_MINIMAX_CLI_COMMANDS:
-        if shutil.which(command.split()[0]):
-            return command
-    raise RuntimeError(
-        "MiniMax CLI is not configured. Install a MiniMax CLI command or set MINIMAX_CLI_COMMAND."
-    )
-
-
-def shell_quote(value: str) -> str:
-    if os.name == "nt":
-        return subprocess.list2cmdline([value])
-    return shlex.quote(value)
-
-
-def render_minimax_command(
-    template: str,
-    *,
-    audio_path: Path,
-    output_path: Path,
-    args: argparse.Namespace,
-    part_index: int,
-    part_count: int,
-) -> list[str] | str:
-    def replace_placeholders(text: str, values: dict[str, str]) -> str:
-        for key, value in values.items():
-            text = text.replace("{" + key + "}", value)
-        return text
-
-    raw_values = {
-        "audio": str(audio_path),
-        "output": str(output_path),
-        "model": args.minimax_model,
-        "language": args.transcribe_language,
-        "part_index": str(part_index),
-        "part_count": str(part_count),
-    }
-    if template.lstrip().startswith("["):
-        try:
-            command = json.loads(template)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Invalid JSON-array MiniMax CLI command template: {exc}") from exc
-        if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
-            raise RuntimeError("JSON-array MiniMax CLI command template must be a list of strings.")
-        return [replace_placeholders(item, raw_values) for item in command]
-
-    quoted_values = dict(raw_values)
-    quoted_values["audio"] = shell_quote(raw_values["audio"])
-    quoted_values["output"] = shell_quote(raw_values["output"])
-    return replace_placeholders(template, quoted_values)
-
-
-def extract_cli_text(raw_text: str) -> str:
-    text = raw_text.strip()
-    if not text:
-        return ""
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        return text
-
+def extract_transcription_text(data: Any) -> str:
     candidates: list[Any] = [data]
     while candidates:
         current = candidates.pop(0)
@@ -624,40 +565,55 @@ def extract_cli_text(raw_text: str) -> str:
             candidates.extend(current.values())
         elif isinstance(current, list):
             candidates.extend(current)
-    return text
+    return ""
 
 
-def transcribe_audio_with_minimax_cli(parts: list[Path], args: argparse.Namespace) -> str:
-    template = resolve_minimax_cli_command(args)
+def minimax_transcribe_url(args: argparse.Namespace) -> str:
+    if args.minimax_transcribe_url:
+        return args.minimax_transcribe_url.rstrip("/")
+    return args.minimax_base_url.rstrip("/") + "/audio/transcriptions"
+
+
+def transcribe_audio_with_minimax_api(parts: list[Path], args: argparse.Namespace) -> str:
+    api_key = os.environ.get("MINIMAX_API_KEY")
+    if not api_key:
+        raise RuntimeError("MINIMAX_API_KEY is required for MiniMax API transcription.")
+
+    import requests
+
+    endpoint = minimax_transcribe_url(args)
     blocks: list[str] = []
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": args.minimax_model,
+        "response_format": "json",
+        "prompt": args.transcription_prompt,
+    }
+    if args.transcribe_language:
+        data["language"] = args.transcribe_language
+
     for index, part in enumerate(parts, start=1):
-        output_path = part.with_suffix(part.suffix + ".minimax.txt")
-        output_path.unlink(missing_ok=True)
-        command = render_minimax_command(
-            template,
-            audio_path=part,
-            output_path=output_path,
-            args=args,
-            part_index=index,
-            part_count=len(parts),
-        )
-        print(f"Transcribing audio part {index}/{len(parts)} with MiniMax CLI: {part.name}")
-        result = subprocess.run(
-            command,
-            shell=isinstance(command, str),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
-            raise RuntimeError(f"MiniMax CLI transcription failed for {part.name}: {detail}")
-        if output_path.exists() and output_path.read_text(encoding="utf-8", errors="replace").strip():
-            text = output_path.read_text(encoding="utf-8", errors="replace").strip()
-        else:
-            text = extract_cli_text(result.stdout)
+        print(f"Transcribing audio part {index}/{len(parts)} with MiniMax API: {part.name}")
+        with part.open("rb") as audio_file:
+            response = requests.post(
+                endpoint,
+                headers=headers,
+                data=data,
+                files={"file": (part.name, audio_file, "application/octet-stream")},
+                timeout=300,
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"MiniMax API transcription failed for {part.name}: "
+                f"HTTP {response.status_code} {response.text[:1000]}"
+            )
+        try:
+            payload: Any = response.json()
+        except ValueError:
+            payload = response.text
+        text = extract_transcription_text(payload).strip()
         if not text:
-            raise RuntimeError(f"MiniMax CLI returned empty transcript for {part.name}.")
+            raise RuntimeError(f"MiniMax API returned empty transcript for {part.name}.")
         if args.timestamps and len(parts) > 1:
             blocks.append(f"### Part {index}\n\n{text}")
         else:
@@ -706,6 +662,7 @@ def transcribe_video_with_kimi(video_path: Path, model: str, keep_timestamps: bo
     prompt = (
         "请根据这个视频的音频内容生成逐字程度尽量高的讲稿。"
         "保留原语言，不要总结、不要改写、不要添加视频里没有说的内容。"
+        "遇到数学公式、变量、符号、单位时，尽量用 Markdown LaTeX 表达：行内公式用 $...$，独立公式用 $$...$$。"
         "如果听不清，请标注[听不清]。"
     )
     if keep_timestamps:
@@ -758,11 +715,11 @@ def choose_transcribe_backend(args: argparse.Namespace) -> str:
         return "openai"
     if os.environ.get("MOONSHOT_API_KEY"):
         return "kimi-video"
-    if minimax_cli_available(args):
-        return "minimax-cli"
+    if os.environ.get("MINIMAX_API_KEY"):
+        return "minimax-api"
     raise RuntimeError(
         "Set OPENAI_API_KEY for OpenAI audio transcription, MOONSHOT_API_KEY for Kimi video transcription, "
-        "or MINIMAX_CLI_COMMAND / a MiniMax CLI command for MiniMax CLI transcription."
+        "or MINIMAX_API_KEY for MiniMax API transcription."
     )
 
 
@@ -849,23 +806,23 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
             backend = choose_transcribe_backend(args)
             if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
                 raise RuntimeError("ffmpeg and ffprobe are required for transcription fallback.")
-            if backend in ("openai", "minimax-cli"):
+            if backend in ("openai", "minimax-api"):
                 audio_path = download_audio(str(url), work_dir, args)
                 if not audio_path:
                     raise RuntimeError("Could not download audio for transcription.")
                 parts = prepare_audio_parts(audio_path, work_dir)
                 if backend == "openai":
-                    body = transcribe_audio(parts, args.transcribe_model, args.timestamps)
+                    body = transcribe_audio(parts, args)
                     source = f"OpenAI transcription ({args.transcribe_model})"
                     metadata["source"] = "openai_transcription"
                     metadata["transcribe_model"] = args.transcribe_model
                 else:
-                    body = transcribe_audio_with_minimax_cli(parts, args)
-                    source = "MiniMax CLI transcription"
-                    metadata["source"] = "minimax_cli_transcription"
-                    metadata["minimax_cli_command"] = resolve_minimax_cli_command(args)
-                    if args.minimax_model:
-                        metadata["minimax_model"] = args.minimax_model
+                    body = transcribe_audio_with_minimax_api(parts, args)
+                    source = f"MiniMax API transcription ({args.minimax_model})"
+                    metadata["source"] = "minimax_api_transcription"
+                    metadata["minimax_model"] = args.minimax_model
+                    metadata["minimax_base_url"] = args.minimax_base_url
+                    metadata["minimax_transcribe_url"] = minimax_transcribe_url(args)
             else:
                 video_path = download_video_for_kimi(str(url), work_dir, args)
                 if not video_path:
