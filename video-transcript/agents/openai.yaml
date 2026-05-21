@@ -1,0 +1,6 @@
+interface:
+  display_name: "Video Transcript"
+  short_description: "Turn video links into transcript documents"
+  default_prompt: "Use $video-transcript to create a transcript document from this video link."
+policy:
+  allow_implicit_invocation: true
