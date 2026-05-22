@@ -1,4 +1,4 @@
-# 反馈回流、Reviewer Handoff 与并行隔离
+# 反馈回流、Reviewer 交接与并行隔离
 
 本文定义富格式 `video-transcript` 工作流中的协作规则。原则是：先定位反馈层级，再修改最小产物切片；并行 agent 不直接争写聚合事实源。
 
@@ -32,7 +32,7 @@
 仍需确认：placeholder asset-006 是否由用户提供图片替换
 ```
 
-## Reviewer Handoff 模板
+## Reviewer 交接模板
 
 需要 reviewer、Agent Teams 或 subagent 复核时，交接必须限制范围：
 

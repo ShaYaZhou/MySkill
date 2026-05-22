@@ -3,7 +3,7 @@
   "name": "video-transcript",
   "version": "0.1.0",
   "category": "video",
-  "description": "从视频或播放列表生成 Markdown 转写稿，并可按需降级到 API 转写。",
+  "description": "从视频或播放列表生成 Markdown 转写稿，并在无人工字幕时按 provider/default-provider 规则进入 API 或代理转写。",
   "compat": [
     "claude-code",
     "claude-ai",
@@ -29,7 +29,17 @@
       "MOONSHOT_BASE_URL",
       "MINIMAX_BASE_URL",
       "MINIMAX_TRANSCRIBE_URL",
-      "MINIMAX_ASR_MODEL"
+      "MINIMAX_ASR_MODEL",
+      "DEEPSEEK_API_KEY",
+      "GLM_API_KEY",
+      "GEMINI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "OPENAI_COMPATIBLE_API_KEY",
+      "OPENAI_COMPATIBLE_BASE_URL",
+      "OPENAI_COMPATIBLE_TRANSCRIBE_URL",
+      "CUSTOM_TRANSCRIBE_API_KEY",
+      "CUSTOM_TRANSCRIBE_URL",
+      "VIDEO_TRANSCRIPT_DEFAULT_PROVIDER_PATH"
     ]
   },
   "default_output_dir": "~/Documents/video-transcripts"

@@ -38,6 +38,152 @@ DEFAULT_TRANSCRIPTION_PROMPT = (
     "variables, symbols, and units as Markdown LaTeX when possible: inline math as $...$ and "
     "display equations as $$...$$. Do not summarize, paraphrase, or add content that was not spoken."
 )
+TRANSCRIBE_MODES = (
+    "audio-asr",
+    "video-understanding",
+    "audio-to-llm",
+    "openai-compatible",
+    "custom-proxy",
+    "proxy-asr",
+    "unsupported-direct",
+)
+PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
+    "openai": {
+        "display_name": "OpenAI",
+        "capability_type": "audio-asr",
+        "default_mode": "audio-asr",
+        "auth_env": "OPENAI_API_KEY",
+        "default_model": "gpt-4o-mini-transcribe",
+        "default_model_env": "OPENAI_TRANSCRIBE_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "global",
+        "limitations": "专用音频转写；需要下载音频并上传 API。",
+    },
+    "moonshot": {
+        "display_name": "Moonshot/Kimi",
+        "capability_type": "video-understanding",
+        "default_mode": "video-understanding",
+        "auth_env": "MOONSHOT_API_KEY",
+        "base_url_env": "MOONSHOT_BASE_URL",
+        "default_model": "kimi-k2.6",
+        "default_model_env": "KIMI_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "cn/global endpoint auto-detect",
+        "limitations": "视频理解式转写，非专用逐字 ASR；精确措辞需要复核。",
+    },
+    "minimax": {
+        "display_name": "MiniMax",
+        "capability_type": "audio-asr",
+        "default_mode": "audio-asr",
+        "auth_env": "MINIMAX_API_KEY",
+        "base_url_env": "MINIMAX_BASE_URL",
+        "endpoint_env": "MINIMAX_TRANSCRIBE_URL",
+        "default_model": "speech-2.8-turbo",
+        "default_model_env": "MINIMAX_ASR_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "cn/global endpoint must match key region",
+        "limitations": "专用音频转写；国内 key 默认使用 https://api.minimaxi.com/v1。",
+    },
+    "deepseek": {
+        "display_name": "DeepSeek",
+        "capability_type": "unsupported-direct",
+        "default_mode": "unsupported-direct",
+        "auth_env": "DEEPSEEK_API_KEY",
+        "base_url_env": "DEEPSEEK_BASE_URL",
+        "default_model": "deepseek-chat",
+        "default_model_env": "DEEPSEEK_MODEL",
+        "uploads_media": False,
+        "requires_media_download": False,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on endpoint",
+        "limitations": "默认只按文本/兼容接口登记；直接音频转写需要代理或自定义 endpoint。",
+    },
+    "glm": {
+        "display_name": "GLM",
+        "capability_type": "unsupported-direct",
+        "default_mode": "unsupported-direct",
+        "auth_env": "GLM_API_KEY",
+        "base_url_env": "GLM_BASE_URL",
+        "default_model": "glm-4",
+        "default_model_env": "GLM_MODEL",
+        "uploads_media": False,
+        "requires_media_download": False,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on endpoint",
+        "limitations": "默认不声明可直接 ASR；需要代理或用户配置可用音视频 endpoint。",
+    },
+    "gemini": {
+        "display_name": "Gemini",
+        "capability_type": "audio-to-llm",
+        "default_mode": "audio-to-llm",
+        "auth_env": "GEMINI_API_KEY",
+        "base_url_env": "GEMINI_BASE_URL",
+        "default_model": "gemini-2.5-flash",
+        "default_model_env": "GEMINI_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on account and region",
+        "limitations": "按理解式转写登记；本脚本首版仅通过代理/兼容 endpoint 执行。",
+    },
+    "claude": {
+        "display_name": "Claude",
+        "capability_type": "unsupported-direct",
+        "default_mode": "unsupported-direct",
+        "auth_env": "ANTHROPIC_API_KEY",
+        "base_url_env": "ANTHROPIC_BASE_URL",
+        "default_model": "claude-sonnet-4-5",
+        "default_model_env": "CLAUDE_MODEL",
+        "uploads_media": False,
+        "requires_media_download": False,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on endpoint",
+        "limitations": "默认不声明可直接 ASR；需要代理或用户配置可用音视频 endpoint。",
+    },
+    "openai-compatible": {
+        "display_name": "OpenAI-compatible 代理",
+        "capability_type": "openai-compatible",
+        "default_mode": "openai-compatible",
+        "auth_env": "OPENAI_COMPATIBLE_API_KEY",
+        "base_url_env": "OPENAI_COMPATIBLE_BASE_URL",
+        "endpoint_env": "OPENAI_COMPATIBLE_TRANSCRIBE_URL",
+        "default_model": "gpt-4o-mini-transcribe",
+        "default_model_env": "OPENAI_COMPATIBLE_TRANSCRIBE_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on proxy",
+        "limitations": "按 OpenAI audio/transcriptions 兼容格式发送 multipart 请求。",
+    },
+    "custom-proxy": {
+        "display_name": "自定义转写代理",
+        "capability_type": "custom-proxy",
+        "default_mode": "custom-proxy",
+        "auth_env": "CUSTOM_TRANSCRIBE_API_KEY",
+        "base_url_env": "CUSTOM_TRANSCRIBE_BASE_URL",
+        "endpoint_env": "CUSTOM_TRANSCRIBE_URL",
+        "default_model": "transcribe",
+        "default_model_env": "CUSTOM_TRANSCRIBE_MODEL",
+        "uploads_media": True,
+        "requires_media_download": True,
+        "paid_or_quota_risk": True,
+        "region_risk": "depends on proxy",
+        "limitations": "首版使用 OpenAI-style multipart 请求；非兼容格式需要后续适配器。",
+    },
+}
+BACKEND_PROVIDER_MAP = {
+    "openai": ("openai", "audio-asr"),
+    "kimi-video": ("moonshot", "video-understanding"),
+    "minimax-api": ("minimax", "audio-asr"),
+}
+PROXY_EXECUTION_MODES = {"openai-compatible", "custom-proxy", "proxy-asr"}
+DIRECT_EXECUTION_PROVIDERS = {"openai", "moonshot", "minimax"}
 
 
 def run(cmd: list[str], *, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
@@ -87,10 +233,35 @@ def parse_args() -> argparse.Namespace:
         "--transcribe-backend",
         choices=("auto", "openai", "kimi-video", "minimax-api"),
         default="auto",
-        help="Fallback backend when no human subtitles are available",
+        help="Legacy fallback backend when no human subtitles are available",
+    )
+    parser.add_argument(
+        "--transcribe-provider",
+        choices=tuple(PROVIDER_REGISTRY),
+        help="Provider id for no-subtitle transcription, e.g. minimax, openai, openai-compatible, custom-proxy.",
+    )
+    parser.add_argument(
+        "--transcribe-mode",
+        choices=TRANSCRIBE_MODES,
+        help="Provider execution mode, e.g. audio-asr, video-understanding, openai-compatible, proxy-asr.",
     )
     parser.add_argument("--transcribe-model", default="gpt-4o-mini-transcribe", help="OpenAI transcription model")
     parser.add_argument("--kimi-model", default="kimi-k2.6", help="Kimi/Moonshot model for video transcript or translation")
+    parser.add_argument(
+        "--transcribe-base-url",
+        default=os.environ.get("TRANSCRIBE_BASE_URL"),
+        help="Generic provider/proxy base URL. Use endpoint-specific variables when possible.",
+    )
+    parser.add_argument(
+        "--transcribe-endpoint",
+        default=os.environ.get("TRANSCRIBE_ENDPOINT"),
+        help="Full provider/proxy audio transcription endpoint URL. Only a redacted host is recorded.",
+    )
+    parser.add_argument(
+        "--transcribe-auth-env",
+        default=os.environ.get("TRANSCRIBE_AUTH_ENV", ""),
+        help="Environment variable name that contains the provider/proxy API key; the value is never logged.",
+    )
     parser.add_argument(
         "--minimax-base-url",
         default=os.environ.get("MINIMAX_BASE_URL") or os.environ.get("MINIMAX_API_BASE") or MINIMAX_BASE_URL,
@@ -125,8 +296,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--doctor", action="store_true", help="Check local dependencies and environment without requiring URLs")
     parser.add_argument("--force", action="store_true", help="Overwrite existing transcript outputs; current default behavior is overwrite-compatible")
     parser.add_argument("--update", action="store_true", help="Update isolated dependencies before processing")
+    parser.add_argument(
+        "--save-default-provider",
+        action="store_true",
+        help="Save the explicit provider choice as the user default without storing the API key value.",
+    )
+    parser.add_argument(
+        "--clear-default-provider",
+        action="store_true",
+        help="Clear the saved user default transcription provider and exit if no URLs are provided.",
+    )
+    parser.add_argument(
+        "--ignore-default-provider",
+        action="store_true",
+        help="Ignore the saved user default provider for this run.",
+    )
     args = parser.parse_args()
-    if not args.doctor and not args.urls:
+    can_run_without_urls = args.doctor or args.clear_default_provider or (args.save_default_provider and (args.transcribe_provider or args.transcribe_backend != "auto"))
+    if not can_run_without_urls and not args.urls:
         parser.error("the following arguments are required unless --doctor is used: urls")
     return args
 
@@ -145,23 +332,360 @@ def redact_url(value: str) -> str:
 
 def sanitize_argv(argv: list[str]) -> list[str]:
     sanitized: list[str] = []
-    redact_next = False
+    redact_next: str | None = None
     for arg in argv:
         option_name = arg.split("=", 1)[0].lower()
         sensitive_option = any(token in option_name for token in ("key", "token", "secret", "password"))
+        endpoint_option = "endpoint" in option_name or "base-url" in option_name or "base_url" in option_name
         if redact_next:
-            sanitized.append("<redacted>")
-            redact_next = False
+            sanitized.append("<redacted>" if redact_next == "secret" else endpoint_label(arg) or "<endpoint>")
+            redact_next = None
             continue
         if sensitive_option:
             if "=" in arg:
                 sanitized.append(arg.split("=", 1)[0] + "=<redacted>")
             else:
                 sanitized.append(arg)
-                redact_next = True
+                redact_next = "secret"
+            continue
+        if endpoint_option:
+            if "=" in arg:
+                key, value = arg.split("=", 1)
+                sanitized.append(key + "=" + (endpoint_label(value) or "<endpoint>"))
+            else:
+                sanitized.append(arg)
+                redact_next = "endpoint"
             continue
         sanitized.append(redact_url(arg))
     return sanitized
+
+
+class ProviderSelectionRequired(RuntimeError):
+    def __init__(self, message: str, plan: dict[str, Any]) -> None:
+        super().__init__(message)
+        self.plan = plan
+
+
+class ProviderBlocked(RuntimeError):
+    def __init__(self, message: str, choice: dict[str, Any]) -> None:
+        super().__init__(message)
+        self.choice = choice
+
+
+class ProviderConfigurationError(RuntimeError):
+    pass
+
+
+def provider_default_path() -> Path:
+    override = os.environ.get("VIDEO_TRANSCRIPT_DEFAULT_PROVIDER_PATH")
+    if override:
+        return Path(override).expanduser()
+    if os.name == "nt" and os.environ.get("APPDATA"):
+        return Path(os.environ["APPDATA"]) / "MySkill" / "video-transcript" / "provider-default.json"
+    return Path("~/.config/MySkill/video-transcript/provider-default.json").expanduser()
+
+
+def load_default_provider() -> dict[str, Any] | None:
+    path = provider_default_path()
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    provider = data.get("default_provider")
+    if provider not in PROVIDER_REGISTRY:
+        return None
+    return data
+
+
+def save_default_provider(choice: dict[str, Any]) -> Path:
+    path = provider_default_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "schema_version": 1,
+        "default_provider": choice["provider"],
+        "default_mode": choice["mode"],
+        "auth_env": choice.get("auth_env"),
+        "model": choice.get("model"),
+        "model_env": choice.get("model_env"),
+        "endpoint_label": choice.get("endpoint_label"),
+        "selection_source": "user-confirmed-default",
+        "updated_at": utc_now(),
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def clear_default_provider() -> Path:
+    path = provider_default_path()
+    if path.exists():
+        path.unlink()
+    return path
+
+
+def endpoint_label(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return parsed.netloc
+    return str(value).split("?", 1)[0].strip() or None
+
+
+def env_value(name: str | None) -> str | None:
+    return os.environ.get(name or "")
+
+
+def provider_model(provider_id: str, args: argparse.Namespace, default_data: dict[str, Any] | None = None) -> str:
+    if default_data and not explicit_provider_requested(args) and default_data.get("model"):
+        return str(default_data["model"])
+    if provider_id == "openai":
+        return args.transcribe_model
+    if provider_id == "moonshot":
+        return args.kimi_model
+    if provider_id == "minimax":
+        return args.minimax_model
+    if default_data and default_data.get("model"):
+        return str(default_data["model"])
+    config = PROVIDER_REGISTRY[provider_id]
+    model_env = str(config.get("default_model_env") or "")
+    return os.environ.get(model_env) or str(config.get("default_model") or args.transcribe_model)
+
+
+def provider_base_url(provider_id: str, args: argparse.Namespace, default_data: dict[str, Any] | None = None) -> str | None:
+    if args.transcribe_base_url:
+        return args.transcribe_base_url
+    if provider_id == "minimax":
+        return args.minimax_base_url
+    if default_data and default_data.get("base_url"):
+        return str(default_data["base_url"])
+    config = PROVIDER_REGISTRY[provider_id]
+    return env_value(str(config.get("base_url_env") or ""))
+
+
+def provider_endpoint(provider_id: str, args: argparse.Namespace, default_data: dict[str, Any] | None = None) -> str | None:
+    if args.transcribe_endpoint:
+        return args.transcribe_endpoint
+    if provider_id == "minimax":
+        return minimax_transcribe_url(args)
+    if default_data and default_data.get("endpoint"):
+        return str(default_data["endpoint"])
+    config = PROVIDER_REGISTRY[provider_id]
+    configured = env_value(str(config.get("endpoint_env") or ""))
+    if configured:
+        return configured
+    base_url = provider_base_url(provider_id, args, default_data)
+    effective_mode = args.transcribe_mode or str((default_data or {}).get("default_mode") or "")
+    if base_url and (provider_id in {"openai-compatible", "custom-proxy"} or effective_mode in PROXY_EXECUTION_MODES):
+        return base_url.rstrip("/") + "/audio/transcriptions"
+    return None
+
+
+def explicit_provider_requested(args: argparse.Namespace) -> bool:
+    return bool(
+        args.transcribe_provider
+        or args.transcribe_mode
+        or args.transcribe_base_url
+        or args.transcribe_endpoint
+        or args.transcribe_auth_env
+        or args.transcribe_backend != "auto"
+    )
+
+
+def provider_option_status(provider_id: str, args: argparse.Namespace) -> dict[str, Any]:
+    config = PROVIDER_REGISTRY[provider_id]
+    auth_env = str(config.get("auth_env") or "")
+    key_present = bool(env_value(auth_env))
+    endpoint = provider_endpoint(provider_id, args)
+    capability = str(config.get("capability_type"))
+    effective_mode = args.transcribe_mode or str(config.get("default_mode") or "")
+    proxy_requested = provider_id in {"openai-compatible", "custom-proxy"} or effective_mode in PROXY_EXECUTION_MODES
+    if not key_present:
+        state = "missing-key"
+    elif provider_id not in DIRECT_EXECUTION_PROVIDERS and not proxy_requested:
+        state = "requires-proxy"
+    elif capability == "unsupported-direct" and not proxy_requested:
+        state = "requires-proxy"
+    elif proxy_requested and provider_id not in DIRECT_EXECUTION_PROVIDERS and not endpoint:
+        state = "needs-endpoint"
+    else:
+        state = "available"
+    return {
+        "provider": provider_id,
+        "display_name": config["display_name"],
+        "capability_type": capability,
+        "default_mode": config["default_mode"],
+        "auth_env": auth_env,
+        "key_present": key_present,
+        "base_url_label": endpoint_label(provider_base_url(provider_id, args)),
+        "endpoint_label": endpoint_label(endpoint),
+        "state": state,
+        "uploads_media": bool(config.get("uploads_media")),
+        "requires_media_download": bool(config.get("requires_media_download")),
+        "paid_or_quota_risk": bool(config.get("paid_or_quota_risk")),
+        "region_risk": config.get("region_risk"),
+        "limitations": config.get("limitations"),
+    }
+
+
+def provider_options(args: argparse.Namespace) -> list[dict[str, Any]]:
+    return [provider_option_status(provider_id, args) for provider_id in PROVIDER_REGISTRY]
+
+
+def recommended_provider_id(args: argparse.Namespace) -> str | None:
+    for provider_id in ("openai", "moonshot", "minimax"):
+        status = provider_option_status(provider_id, args)
+        if status["state"] == "available":
+            return provider_id
+    for status in provider_options(args):
+        if status["state"] == "available":
+            return str(status["provider"])
+    return None
+
+
+def provider_checkpoint_plan(args: argparse.Namespace, reason: str) -> dict[str, Any]:
+    recommendation = recommended_provider_id(args)
+    return {
+        "status": "requires_confirmation",
+        "reason": reason,
+        "recommended_provider": recommendation,
+        "available_providers": provider_options(args),
+        "default_provider_path": str(provider_default_path()),
+        "action": (
+            "首次无人工字幕且没有默认 provider 时，必须选择默认 provider/API 凭据；"
+            "请传入 --transcribe-provider/--transcribe-mode，并用 --save-default-provider 保存默认值。"
+        ),
+        "degrade_options": [
+            "提供人工字幕文件",
+            "提供已转写文本",
+            "改用本地 ASR 或自定义代理",
+            "只保存 metadata 并跳过该视频",
+        ],
+    }
+
+
+def resolve_provider_choice(args: argparse.Namespace, *, allow_default: bool = True) -> dict[str, Any]:
+    mapped_provider: str | None = None
+    mapped_mode: str | None = None
+    if args.transcribe_backend != "auto":
+        mapped_provider, mapped_mode = BACKEND_PROVIDER_MAP[args.transcribe_backend]
+    if mapped_provider and args.transcribe_provider and args.transcribe_provider != mapped_provider:
+        raise ProviderConfigurationError(
+            f"--transcribe-backend {args.transcribe_backend} maps to provider {mapped_provider}, "
+            f"but --transcribe-provider {args.transcribe_provider} was also provided."
+        )
+    if mapped_mode and args.transcribe_mode and args.transcribe_mode != mapped_mode:
+        raise ProviderConfigurationError(
+            f"--transcribe-backend {args.transcribe_backend} maps to mode {mapped_mode}, "
+            f"but --transcribe-mode {args.transcribe_mode} was also provided."
+        )
+
+    default_data = None if args.ignore_default_provider or not allow_default else load_default_provider()
+    selection_source = "cli-explicit" if explicit_provider_requested(args) else "saved-default" if default_data else ""
+    if explicit_provider_requested(args):
+        provider_id = args.transcribe_provider or mapped_provider or ("custom-proxy" if args.transcribe_endpoint else "openai-compatible")
+        mode = args.transcribe_mode or mapped_mode or str(PROVIDER_REGISTRY[provider_id]["default_mode"])
+    elif default_data:
+        provider_id = str(default_data["default_provider"])
+        mode = str(default_data.get("default_mode") or PROVIDER_REGISTRY[provider_id]["default_mode"])
+    else:
+        raise ProviderSelectionRequired(
+            "No human subtitles are available and no transcription provider/default provider was selected.",
+            provider_checkpoint_plan(args, "no-human-subtitle-without-provider"),
+        )
+
+    if provider_id not in PROVIDER_REGISTRY:
+        raise ProviderBlocked(f"Unknown transcription provider: {provider_id}", {"provider": provider_id})
+    config = PROVIDER_REGISTRY[provider_id]
+    auth_env = args.transcribe_auth_env or str((default_data or {}).get("auth_env") or config.get("auth_env") or "")
+    model = provider_model(provider_id, args, default_data)
+    endpoint = provider_endpoint(provider_id, args, default_data)
+    capability_type = str(config.get("capability_type"))
+    proxy_used = provider_id in {"openai-compatible", "custom-proxy"} or mode in PROXY_EXECUTION_MODES
+    warnings: list[str] = []
+    if capability_type in {"video-understanding", "audio-to-llm"}:
+        warnings.append("该 provider 使用理解式转写，不是专用逐字 ASR。")
+    if provider_id not in DIRECT_EXECUTION_PROVIDERS and not proxy_used:
+        warnings.append("该 provider 首版需要代理或自定义 endpoint 执行。")
+    if capability_type == "unsupported-direct" and not proxy_used:
+        warnings.append("该 provider 当前未声明可直接处理音频/视频，需要代理或自定义 endpoint。")
+    choice = {
+        "provider": provider_id,
+        "display_name": config["display_name"],
+        "mode": mode,
+        "model": model,
+        "model_env": config.get("default_model_env"),
+        "auth_env": auth_env,
+        "auth_present": bool(env_value(auth_env)),
+        "base_url_label": endpoint_label(provider_base_url(provider_id, args, default_data)),
+        "endpoint": endpoint,
+        "endpoint_label": endpoint_label(endpoint),
+        "provider_capability_type": capability_type,
+        "provider_selection_source": selection_source or "env-recommendation",
+        "default_provider_used": bool(default_data and not explicit_provider_requested(args)),
+        "default_credential_label": auth_env or None,
+        "media_downloaded": bool(config.get("requires_media_download")),
+        "media_uploaded": bool(config.get("uploads_media")),
+        "proxy_used": proxy_used,
+        "selection_warnings": warnings,
+        "status": "ok",
+    }
+    def raise_blocked(message: str, status: str = "blocked") -> None:
+        choice["status"] = status
+        if choice["default_provider_used"]:
+            choice["provider_checkpoint"] = provider_checkpoint_plan(args, "saved-default-provider-invalid")
+        raise ProviderBlocked(message, choice)
+
+    if not choice["auth_present"]:
+        raise_blocked(f"{auth_env or provider_id + ' API key'} is required for provider {provider_id}.")
+    if proxy_used and not endpoint:
+        raise_blocked(f"Provider {provider_id} requires --transcribe-endpoint or a configured endpoint env var.")
+    if provider_id not in DIRECT_EXECUTION_PROVIDERS and not proxy_used:
+        raise_blocked(f"Provider {provider_id} requires proxy mode or a compatible transcription endpoint.", "requires-proxy")
+    if capability_type == "unsupported-direct" and not proxy_used:
+        raise_blocked(f"Provider {provider_id} requires proxy mode or a compatible transcription endpoint.", "requires-proxy")
+    return choice
+
+
+def provider_metadata_fields(choice: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "transcribe_provider": choice.get("provider"),
+        "transcribe_mode": choice.get("mode"),
+        "transcribe_model": choice.get("model"),
+        "provider_capability_type": choice.get("provider_capability_type"),
+        "provider_selection_source": choice.get("provider_selection_source"),
+        "default_provider_used": choice.get("default_provider_used", False),
+        "default_credential_label": choice.get("default_credential_label"),
+        "auth_env": choice.get("auth_env"),
+        "media_downloaded": choice.get("media_downloaded", False),
+        "media_uploaded": choice.get("media_uploaded", False),
+        "endpoint_label": choice.get("endpoint_label"),
+        "proxy_used": choice.get("proxy_used", False),
+        "selection_warnings": choice.get("selection_warnings", []),
+    }
+
+
+def public_provider_choice(choice: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "provider": choice.get("provider"),
+        "display_name": choice.get("display_name"),
+        "mode": choice.get("mode"),
+        "model": choice.get("model"),
+        "capability_type": choice.get("provider_capability_type"),
+        "selection_source": choice.get("provider_selection_source"),
+        "default_provider_used": choice.get("default_provider_used", False),
+        "default_credential_label": choice.get("default_credential_label"),
+        "auth_env": choice.get("auth_env"),
+        "base_url_label": choice.get("base_url_label"),
+        "endpoint_label": choice.get("endpoint_label"),
+        "media_downloaded": choice.get("media_downloaded", False),
+        "media_uploaded": choice.get("media_uploaded", False),
+        "proxy_used": choice.get("proxy_used", False),
+        "selection_warnings": choice.get("selection_warnings", []),
+        "status": choice.get("status", "ok"),
+        "provider_checkpoint": choice.get("provider_checkpoint"),
+    }
 
 
 def output_paths_for_video(video: dict[str, Any], output_root: Path) -> dict[str, str]:
@@ -183,6 +707,10 @@ def make_video_summary(video: dict[str, Any], output_root: Path) -> dict[str, An
         "url": redact_url(str(video.get("_download_url") or video.get("webpage_url") or "")),
         "status": "pending",
         "backend": None,
+        "transcribe_provider": None,
+        "transcribe_mode": None,
+        "provider_selection_source": None,
+        "default_provider_used": False,
         "source": None,
         "output_paths": paths,
         "failures": [],
@@ -222,7 +750,13 @@ def make_run_summary(args: argparse.Namespace, output_root: Path) -> dict[str, A
         "argv": sanitize_argv(sys.argv[1:]),
         "cwd": str(Path.cwd()),
         "requested_backend": args.transcribe_backend,
+        "requested_provider": args.transcribe_provider,
+        "requested_mode": args.transcribe_mode,
         "backend": None,
+        "transcribe_provider": None,
+        "transcribe_mode": None,
+        "default_provider_path": str(provider_default_path()),
+        "default_provider_used": False,
         "output_root": str(output_root),
         "force": bool(args.force),
         "items": [],
@@ -265,7 +799,12 @@ def write_summary_files(output_root: Path, summary: dict[str, Any]) -> None:
         "mode": summary["mode"],
         "cwd": summary["cwd"],
         "requested_backend": summary["requested_backend"],
+        "requested_provider": summary.get("requested_provider"),
+        "requested_mode": summary.get("requested_mode"),
         "backend": summary.get("backend"),
+        "transcribe_provider": summary.get("transcribe_provider"),
+        "transcribe_mode": summary.get("transcribe_mode"),
+        "default_provider_used": summary.get("default_provider_used", False),
         "output_root": summary["output_root"],
         "items": items,
         "output_paths": summary["output_paths"],
@@ -289,14 +828,44 @@ def doctor_report(args: argparse.Namespace, output_root: Path) -> tuple[int, dic
         {"name": name, "ok": shutil.which(name) is not None, "detail": "found" if shutil.which(name) else "missing"}
         for name in ("yt-dlp", "ffmpeg", "ffprobe")
     ]
-    env_names = ("OPENAI_API_KEY", "MOONSHOT_API_KEY", "MINIMAX_API_KEY", "MINIMAX_BASE_URL", "MINIMAX_API_BASE")
+    env_names = (
+        "OPENAI_API_KEY",
+        "MOONSHOT_API_KEY",
+        "MINIMAX_API_KEY",
+        "MINIMAX_BASE_URL",
+        "MINIMAX_API_BASE",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_BASE_URL",
+        "GLM_API_KEY",
+        "GLM_BASE_URL",
+        "GEMINI_API_KEY",
+        "GEMINI_BASE_URL",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_BASE_URL",
+        "OPENAI_COMPATIBLE_API_KEY",
+        "OPENAI_COMPATIBLE_BASE_URL",
+        "OPENAI_COMPATIBLE_TRANSCRIBE_URL",
+        "CUSTOM_TRANSCRIBE_API_KEY",
+        "CUSTOM_TRANSCRIBE_BASE_URL",
+        "CUSTOM_TRANSCRIBE_URL",
+    )
     env = [{"name": name, "present": bool(os.environ.get(name))} for name in env_names]
+    default_data = load_default_provider()
     checks = {
         "python": sys.version.split()[0],
         "executable": str(Path(sys.executable).resolve()),
         "packages": packages,
         "commands": commands,
         "environment": env,
+        "providers": provider_options(args),
+        "default_provider": {
+            "path": str(provider_default_path()),
+            "present": bool(default_data),
+            "provider": default_data.get("default_provider") if default_data else None,
+            "mode": default_data.get("default_mode") if default_data else None,
+            "auth_env": default_data.get("auth_env") if default_data else None,
+            "endpoint_label": default_data.get("endpoint_label") if default_data else None,
+        },
     }
     missing = [
         f"package:{item['name']}" for item in packages if not item["ok"]
@@ -311,6 +880,9 @@ def doctor_report(args: argparse.Namespace, output_root: Path) -> tuple[int, dic
         "url": None,
         "status": "success" if status == 0 else "failed",
         "backend": args.transcribe_backend,
+        "transcribe_provider": args.transcribe_provider,
+        "transcribe_mode": args.transcribe_mode,
+        "default_provider_used": False,
         "source": "doctor",
         "output_paths": {"output_root": str(output_root)},
         "outputs_written": [],
@@ -826,6 +1398,55 @@ def transcribe_audio_with_minimax_api(parts: list[Path], args: argparse.Namespac
     return "\n\n".join(blocks).strip()
 
 
+def transcribe_audio_with_proxy(parts: list[Path], args: argparse.Namespace, choice: dict[str, Any]) -> str:
+    import requests
+
+    api_key = env_value(str(choice.get("auth_env") or ""))
+    if not api_key:
+        raise RuntimeError(f"{choice.get('auth_env') or 'Provider API key'} is required for proxy transcription.")
+    endpoint = choice.get("endpoint")
+    if not endpoint:
+        raise RuntimeError("A transcription endpoint is required for proxy transcription.")
+
+    blocks: list[str] = []
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": choice.get("model") or args.transcribe_model,
+        "response_format": "json",
+        "prompt": args.transcription_prompt,
+    }
+    if args.transcribe_language:
+        data["language"] = args.transcribe_language
+
+    for index, part in enumerate(parts, start=1):
+        print(f"Transcribing audio part {index}/{len(parts)} with {choice['provider']} proxy: {part.name}")
+        with part.open("rb") as audio_file:
+            response = requests.post(
+                str(endpoint),
+                headers=headers,
+                data=data,
+                files={"file": (part.name, audio_file, "application/octet-stream")},
+                timeout=300,
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"{choice['provider']} proxy transcription failed for {part.name}: "
+                f"HTTP {response.status_code} {response.text[:1000]}"
+            )
+        try:
+            payload: Any = response.json()
+        except ValueError:
+            payload = response.text
+        text = extract_transcription_text(payload).strip()
+        if not text:
+            raise RuntimeError(f"{choice['provider']} proxy returned empty transcript for {part.name}.")
+        if args.timestamps and len(parts) > 1:
+            blocks.append(f"### Part {index}\n\n{text}")
+        else:
+            blocks.append(text)
+    return "\n\n".join(blocks).strip()
+
+
 def kimi_client():
     api_key = os.environ.get("MOONSHOT_API_KEY")
     if not api_key:
@@ -913,21 +1534,6 @@ def translate_to_zh_with_kimi(original_text: str, model: str) -> str:
     return (response.choices[0].message.content or "").strip()
 
 
-def choose_transcribe_backend(args: argparse.Namespace) -> str:
-    if args.transcribe_backend != "auto":
-        return args.transcribe_backend
-    if os.environ.get("OPENAI_API_KEY"):
-        return "openai"
-    if os.environ.get("MOONSHOT_API_KEY"):
-        return "kimi-video"
-    if os.environ.get("MINIMAX_API_KEY"):
-        return "minimax-api"
-    raise RuntimeError(
-        "Set OPENAI_API_KEY for OpenAI audio transcription, MOONSHOT_API_KEY for Kimi video transcription, "
-        "or MINIMAX_API_KEY for MiniMax API transcription."
-    )
-
-
 def markdown_document(video: dict[str, Any], body: str, *, source: str, language: str | None) -> str:
     title = video.get("title") or "Video transcript"
     url = video.get("_download_url") or video.get("webpage_url") or ""
@@ -964,11 +1570,30 @@ def dry_run_video(video: dict[str, Any], output_root: Path, args: argparse.Names
         return summary
 
     try:
-        backend = choose_transcribe_backend(args)
+        choice = resolve_provider_choice(args)
+        summary.update(provider_metadata_fields(choice))
         summary["status"] = "would_process"
-        summary["backend"] = backend
-        summary["source"] = f"{backend}_transcription"
+        summary["backend"] = choice["provider"]
+        summary["source"] = f"{choice['provider']}_{choice['mode']}"
+        summary["provider_plan"] = public_provider_choice(choice)
         summary["uncertain"].append("dry-run did not download media, upload API payloads, or transcribe")
+    except ProviderSelectionRequired as exc:
+        summary["status"] = "requires_confirmation"
+        summary["backend"] = args.transcribe_backend
+        summary["provider_checkpoint"] = exc.plan
+        summary["uncertain"].append(str(exc))
+    except ProviderBlocked as exc:
+        summary.update(provider_metadata_fields(exc.choice))
+        summary["status"] = exc.choice.get("status", "blocked")
+        summary["backend"] = exc.choice.get("provider") or args.transcribe_backend
+        summary["provider_plan"] = public_provider_choice(exc.choice)
+        if exc.choice.get("provider_checkpoint"):
+            summary["provider_checkpoint"] = exc.choice["provider_checkpoint"]
+        summary["failures"].append(str(exc))
+    except ProviderConfigurationError as exc:
+        summary["status"] = "blocked"
+        summary["backend"] = args.transcribe_backend
+        summary["failures"].append(str(exc))
     except Exception as exc:
         summary["status"] = "uncertain"
         summary["backend"] = args.transcribe_backend
@@ -1016,6 +1641,19 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
         "original_language": None,
         "needs_zh_translation": False,
         "status": "pending",
+        "transcribe_provider": None,
+        "transcribe_mode": None,
+        "transcribe_model": None,
+        "provider_capability_type": None,
+        "provider_selection_source": None,
+        "default_provider_used": False,
+        "default_credential_label": None,
+        "auth_env": None,
+        "media_downloaded": False,
+        "media_uploaded": False,
+        "endpoint_label": None,
+        "proxy_used": False,
+        "selection_warnings": [],
     }
 
     try:
@@ -1054,36 +1692,47 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
                     metadata["zh_source"] = f"kimi_translation ({args.kimi_model})"
                     metadata["needs_zh_translation"] = False
         else:
-            backend = choose_transcribe_backend(args)
-            summary["backend"] = backend
+            choice = resolve_provider_choice(args)
+            metadata.update(provider_metadata_fields(choice))
+            summary.update(provider_metadata_fields(choice))
+            summary["backend"] = choice["provider"]
             if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
                 raise RuntimeError("ffmpeg and ffprobe are required for transcription fallback.")
-            if backend in ("openai", "minimax-api"):
+            if choice["provider"] in ("openai", "minimax"):
                 audio_path = download_audio(str(url), work_dir, args)
                 if not audio_path:
                     raise RuntimeError("Could not download audio for transcription.")
                 parts = prepare_audio_parts(audio_path, work_dir)
-                if backend == "openai":
+                if choice["provider"] == "openai":
                     body = transcribe_audio(parts, args)
-                    source = f"OpenAI transcription ({args.transcribe_model})"
+                    source = f"OpenAI transcription ({choice['model']})"
                     metadata["source"] = "openai_transcription"
-                    metadata["transcribe_model"] = args.transcribe_model
+                    metadata["transcribe_model"] = choice["model"]
                 else:
                     body = transcribe_audio_with_minimax_api(parts, args)
-                    source = f"MiniMax API transcription ({args.minimax_model})"
+                    source = f"MiniMax API transcription ({choice['model']})"
                     metadata["source"] = "minimax_api_transcription"
-                    metadata["minimax_model"] = args.minimax_model
-                    metadata["minimax_base_url"] = args.minimax_base_url
-                    metadata["minimax_transcribe_url"] = minimax_transcribe_url(args)
-            else:
+                    metadata["minimax_model"] = choice["model"]
+                    metadata["minimax_endpoint_label"] = choice.get("endpoint_label")
+            elif choice["provider"] == "moonshot" and choice["mode"] == "video-understanding":
                 video_path = download_video_for_kimi(str(url), work_dir, args)
                 if not video_path:
                     raise RuntimeError("Could not download video for Kimi transcription.")
                 kimi_video_path = compress_video_for_kimi(video_path, work_dir)
-                body = transcribe_video_with_kimi(kimi_video_path, args.kimi_model, args.timestamps)
-                source = f"Kimi video transcription ({args.kimi_model})"
+                body = transcribe_video_with_kimi(kimi_video_path, choice["model"], args.timestamps)
+                source = f"Kimi video transcription ({choice['model']})"
                 metadata["source"] = "kimi_video_transcription"
-                metadata["kimi_model"] = args.kimi_model
+                metadata["kimi_model"] = choice["model"]
+            elif choice["proxy_used"]:
+                audio_path = download_audio(str(url), work_dir, args)
+                if not audio_path:
+                    raise RuntimeError("Could not download audio for proxy transcription.")
+                parts = prepare_audio_parts(audio_path, work_dir)
+                body = transcribe_audio_with_proxy(parts, args, choice)
+                source = f"{choice['display_name']} proxy transcription ({choice['model']})"
+                metadata["source"] = f"{choice['provider']}_proxy_transcription"
+            else:
+                raise ProviderBlocked(f"Provider {choice['provider']} cannot execute mode {choice['mode']} directly.", choice)
             if not body:
                 raise RuntimeError("Transcription returned empty text.")
             original_path.write_text(
@@ -1114,6 +1763,53 @@ def process_video(video: dict[str, Any], output_root: Path, args: argparse.Names
         summary["metadata"] = metadata
         summary["outputs_written"] = summarize_outputs(video_dir)
         return summary
+    except ProviderSelectionRequired as exc:
+        metadata["error"] = str(exc)
+        metadata["status"] = "blocked"
+        metadata["provider_checkpoint"] = exc.plan
+        write_metadata(video_dir, metadata)
+        if not args.keep_audio:
+            shutil.rmtree(work_dir, ignore_errors=True)
+        print(f"Blocked: {video.get('title') or url}: {exc}", file=sys.stderr)
+        summary["status"] = "blocked"
+        summary["source"] = metadata.get("source") or summary.get("source")
+        summary["metadata"] = metadata
+        summary["provider_checkpoint"] = exc.plan
+        summary["outputs_written"] = summarize_outputs(video_dir)
+        summary["failures"].append(str(exc))
+        return summary
+    except ProviderBlocked as exc:
+        metadata.update(provider_metadata_fields(exc.choice))
+        metadata["error"] = str(exc)
+        metadata["status"] = exc.choice.get("status", "blocked")
+        if exc.choice.get("provider_checkpoint"):
+            metadata["provider_checkpoint"] = exc.choice["provider_checkpoint"]
+        write_metadata(video_dir, metadata)
+        if not args.keep_audio:
+            shutil.rmtree(work_dir, ignore_errors=True)
+        print(f"Blocked: {video.get('title') or url}: {exc}", file=sys.stderr)
+        summary.update(provider_metadata_fields(exc.choice))
+        summary["status"] = metadata["status"]
+        summary["source"] = metadata.get("source") or summary.get("source")
+        summary["metadata"] = metadata
+        if exc.choice.get("provider_checkpoint"):
+            summary["provider_checkpoint"] = exc.choice["provider_checkpoint"]
+        summary["outputs_written"] = summarize_outputs(video_dir)
+        summary["failures"].append(str(exc))
+        return summary
+    except ProviderConfigurationError as exc:
+        metadata["error"] = str(exc)
+        metadata["status"] = "blocked"
+        write_metadata(video_dir, metadata)
+        if not args.keep_audio:
+            shutil.rmtree(work_dir, ignore_errors=True)
+        print(f"Blocked: {video.get('title') or url}: {exc}", file=sys.stderr)
+        summary["status"] = "blocked"
+        summary["source"] = metadata.get("source") or summary.get("source")
+        summary["metadata"] = metadata
+        summary["outputs_written"] = summarize_outputs(video_dir)
+        summary["failures"].append(str(exc))
+        return summary
     except Exception as exc:
         metadata["error"] = str(exc)
         metadata["status"] = "failed"
@@ -1136,6 +1832,70 @@ def main() -> int:
     output_root = Path(args.output_dir).expanduser().resolve()
     output_root.mkdir(parents=True, exist_ok=True)
     run_summary = make_run_summary(args, output_root)
+
+    if args.clear_default_provider:
+        cleared = clear_default_provider()
+        item = {
+            "title": "default-provider",
+            "id": None,
+            "url": None,
+            "status": "success",
+            "backend": None,
+            "transcribe_provider": None,
+            "transcribe_mode": None,
+            "source": "clear-default-provider",
+            "output_paths": {"default_provider_path": str(cleared)},
+            "outputs_written": [],
+            "failures": [],
+            "uncertain": [],
+        }
+        run_summary["items"].append(item)
+        print(f"Default provider cleared: {cleared}")
+        if not args.urls:
+            write_summary_files(output_root, run_summary)
+            return 0
+
+    if args.save_default_provider:
+        try:
+            choice = resolve_provider_choice(args, allow_default=False)
+        except ProviderSelectionRequired as exc:
+            print(str(exc), file=sys.stderr)
+            run_summary["failures"].append(str(exc))
+            write_summary_files(output_root, run_summary)
+            return 1
+        except ProviderBlocked as exc:
+            print(str(exc), file=sys.stderr)
+            run_summary["failures"].append(str(exc))
+            write_summary_files(output_root, run_summary)
+            return 1
+        except ProviderConfigurationError as exc:
+            print(str(exc), file=sys.stderr)
+            run_summary["failures"].append(str(exc))
+            write_summary_files(output_root, run_summary)
+            return 1
+        saved_path = save_default_provider(choice)
+        run_summary["transcribe_provider"] = choice["provider"]
+        run_summary["transcribe_mode"] = choice["mode"]
+        run_summary["default_provider_used"] = False
+        print(f"Default provider saved: {choice['provider']} ({choice['mode']}) -> {saved_path}")
+        if not args.urls:
+            run_summary["items"].append(
+                {
+                    "title": "default-provider",
+                    "id": None,
+                    "url": None,
+                    "status": "success",
+                    "backend": choice["provider"],
+                    **provider_metadata_fields(choice),
+                    "source": "save-default-provider",
+                    "output_paths": {"default_provider_path": str(saved_path)},
+                    "outputs_written": [str(saved_path)],
+                    "failures": [],
+                    "uncertain": [],
+                }
+            )
+            write_summary_files(output_root, run_summary)
+            return 0
 
     if args.doctor:
         status, item = doctor_report(args, output_root)
@@ -1168,10 +1928,15 @@ def main() -> int:
         for video in iter_videos(info, url):
             item = dry_run_video(video, output_root, args) if args.dry_run else process_video(video, output_root, args)
             run_summary["items"].append(item)
-            if item.get("status") == "failed":
+            if item.get("status") in {"failed", "blocked", "requires-proxy"}:
                 failures += 1
     backends = sorted({str(item.get("backend")) for item in run_summary["items"] if item.get("backend")})
     run_summary["backend"] = backends[0] if len(backends) == 1 else "mixed" if backends else args.transcribe_backend
+    providers = sorted({str(item.get("transcribe_provider")) for item in run_summary["items"] if item.get("transcribe_provider")})
+    modes = sorted({str(item.get("transcribe_mode")) for item in run_summary["items"] if item.get("transcribe_mode")})
+    run_summary["transcribe_provider"] = providers[0] if len(providers) == 1 else "mixed" if providers else None
+    run_summary["transcribe_mode"] = modes[0] if len(modes) == 1 else "mixed" if modes else None
+    run_summary["default_provider_used"] = any(bool(item.get("default_provider_used")) for item in run_summary["items"])
     write_summary_files(output_root, run_summary)
 
     if args.dry_run:

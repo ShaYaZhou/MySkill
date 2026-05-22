@@ -1,9 +1,9 @@
 ---
 name: video-transcript
-description: 当用户提供一个或多个视频或播放列表 URL，并希望生成转写稿、口播稿、讲义、双语文档或后续富格式材料时使用。默认优先使用人工字幕，缺字幕时再按确认流程降级到 OpenAI、Kimi 或 MiniMax 转写。
+description: 当用户提供一个或多个视频或播放列表 URL，并希望生成转写稿、口播稿、讲义、双语文档或后续富格式材料时使用。默认优先使用人工字幕；缺字幕时按 provider 选择与默认凭据规则进入 API/代理转写。
 ---
 
-# Video Transcript
+# 视频转写
 
 从视频或播放列表 URL 生成 Markdown 转写文档。默认优先使用人工字幕，因为它最快、成本最低、隐私风险也最小；只有字幕不可用或用户明确要求时，才进入音视频下载和 API 转写路径。
 
@@ -26,7 +26,8 @@ python scripts/transcript.py "URL_1" "URL_2"
 ## 快速策略
 
 - 优先使用人工字幕；默认不使用平台自动生成字幕。
-- 字幕不可用时，`--transcribe-backend auto` 按可见配置选择 OpenAI、Kimi video、MiniMax API。
+- 字幕不可用时，优先使用用户显式选择的 `--transcribe-provider` / `--transcribe-mode`；没有显式选择时使用用户级默认 provider；两者都没有时必须先做 provider 选择 checkpoint。
+- 第一次进入 API/代理转写路径且没有默认 provider 时，必须让用户选择一个默认 provider/API 凭据；只保存 provider、mode、环境变量名、模型和 endpoint label，不保存真实 API key。
 - 数学内容保留为 Markdown LaTeX：`$...$` 和 `$$...$$`。
 - 任何 API key、cookie、token、session value 都不得写入 skill 文件、日志或 summary。
 - 涉及登录、浏览器 cookie、付费 API、隐私敏感上传或大型播放列表时，先给出短计划并等待确认。
@@ -41,13 +42,17 @@ python scripts/transcript.py --output-dir "D:\transcripts" "URL"
 python scripts/transcript.py --timestamps "URL"
 python scripts/transcript.py --transcribe-backend openai "URL"
 python scripts/transcript.py --transcribe-backend minimax-api "URL"
+python scripts/transcript.py --transcribe-provider minimax --transcribe-mode audio-asr "URL"
+python scripts/transcript.py --transcribe-provider minimax --save-default-provider
+python scripts/transcript.py --clear-default-provider
+python scripts/transcript.py --ignore-default-provider --transcribe-provider openai "URL"
 python scripts/transcript.py --cookies-from-browser chrome "URL"
 python scripts/transcript.py --doctor
 python scripts/transcript.py --dry-run "URL"
 python scripts/transcript.py --force "URL"
 ```
 
-`--doctor` 只诊断本地依赖和可见配置，不处理媒体。`--dry-run` 预览 metadata、候选后端、输出路径和风险，不下载媒体、不上传 API。`--force` 表示允许覆盖或重跑已有成功产物，使用前需要确认覆盖风险。
+`--doctor` 只诊断本地依赖、provider registry、默认 provider 偏好和可见配置，不处理媒体。`--dry-run` 预览 metadata、候选 provider、默认选择、输出路径和风险，不下载媒体、不上传 API。`--force` 表示允许覆盖或重跑已有成功产物，使用前需要确认覆盖风险。
 
 ## 输出契约
 
@@ -58,13 +63,13 @@ python scripts/transcript.py --force "URL"
 - `metadata.json`：每个视频的事实源，记录标题、URL、来源、语言、输出路径、翻译状态和错误。
 - `run-summary.json`：批量运行或显式 summary 运行的聚合事实源。
 
-运行后先检查 `metadata.json`。如果 `needs_zh_translation` 为 `true`，再忠实翻译 `original.md`，并把 `zh.md` 写到 metadata 记录的路径。
+运行后先检查 `metadata.json`。如果使用 API/代理转写，metadata 必须记录 `transcribe_provider`、`transcribe_mode`、`provider_selection_source`、`default_provider_used`、`auth_env`、`endpoint_label`、`media_uploaded` 和 `selection_warnings` 等脱敏字段。如果 `needs_zh_translation` 为 `true`，再忠实翻译 `original.md`，并把 `zh.md` 写到 metadata 记录的路径。
 
 ## 引用地图
 
 只有请求需要细节时才继续读取：
 
-- [`references/BACKENDS.md`](references/BACKENDS.md)：字幕、OpenAI、Kimi、MiniMax 的 fallback 策略。
+- [`references/BACKENDS.md`](references/BACKENDS.md)：人工字幕、provider registry、默认 provider、OpenAI、Kimi、MiniMax、多厂商和代理策略。
 - [`references/OUTPUT-CONTRACT.md`](references/OUTPUT-CONTRACT.md)：文件、metadata 字段、summary schema 和状态 token。
 - [`references/CHECKS.md`](references/CHECKS.md)：checkpoint、doctor/dry-run、自检、重试、force、reviewer handoff 和反馈回流。
 - [`references/WEB-ACCESS.md`](references/WEB-ACCESS.md)：网页登录、cookie、动态页面或浏览器交互的确认模板、安全边界、结果交接和脱敏记录。
@@ -78,6 +83,7 @@ python scripts/transcript.py --force "URL"
 
 ## 可选检查点摘要
 
+- Provider 选择：没有人工字幕且需要 API/代理转写时，若用户未显式选择且没有可用默认 provider，先让用户确认 provider、mode、API 凭据环境变量、是否保存默认值、是否上传媒体和退化选项。
 - Web Access：网站需要登录、cookie、动态页面、浏览器交互或 `--cookies-from-browser` 时，先按 Web Access checkpoint 确认；用户拒绝时只使用公开可访问资料或汇报无法完成的部分。
 - Content plan：复杂摘要、讲义、课件、长视频内容重构，或用户要求 HTML/PPTX/Word/DOCX/PDF 等富格式导出时，转写后生成用户可编辑的 `content-plan.md`。
 - 默认轻量路径：普通公开视频 Markdown 转写不强制生成 `content-plan.md`，也不在转写后主动打断用户要求截图确认；只在完成汇报中提示这些能力可作为后续增强。
@@ -90,5 +96,6 @@ python scripts/transcript.py --force "URL"
 - 非 Markdown 格式只有在用户已指定或已确认后生成；对应 anchor、公式 fallback、设计自检和渲染 QA 证据已记录。
 - 如果进入 Web Access、截图、素材、多格式、设计或富格式 QA 阶段，产物目录必须有 `run-manifest.json`，并通过对应 reference 的 checkpoint 摘要自检。
 - 默认公开视频 Markdown 转写不因这些富格式 checkpoint 被强制打断；只有登录、外发、付费、截图、多格式、设计或覆盖风险触发确认。
+- 已存在可用默认 provider 时，普通无人工字幕转写不再因为 provider 选择本身打断用户；大型播放列表、登录/cookie、覆盖、默认值失效或 endpoint 不明确仍需确认。
 - 汇报输出路径、失败/跳过项、警告和下一步动作。
 - 可恢复且安全的失败先重试，再汇报结果。

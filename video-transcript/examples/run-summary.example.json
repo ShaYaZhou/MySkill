@@ -1,28 +1,40 @@
 {
   "schema_version": 1,
   "tool": "video-transcript",
-  "status": "ok",
+  "status": "dry_run",
   "started_at": "2026-01-01T00:00:00Z",
-  "completed_at": "2026-01-01T00:01:00Z",
+  "finished_at": "2026-01-01T00:01:00Z",
   "cwd": "D:/git/MySkill/video-transcript",
   "argv": [
     "scripts/transcript.py",
+    "--transcribe-provider",
+    "minimax",
     "--dry-run",
     "https://example.invalid/watch?v=abc123"
   ],
-  "env": {
-    "OPENAI_API_KEY": "missing",
-    "MOONSHOT_API_KEY": "missing",
-    "MINIMAX_API_KEY": "missing"
-  },
+  "requested_backend": "auto",
+  "requested_provider": "minimax",
+  "requested_mode": "audio-asr",
+  "transcribe_provider": null,
+  "transcribe_mode": null,
+  "default_provider_path": "C:/Users/example/AppData/Roaming/MySkill/video-transcript/provider-default.json",
+  "default_provider_used": false,
   "items": [
     {
       "url": "https://example.invalid/watch?v=abc123",
-      "status": "ok",
+      "status": "would_process",
       "metadata_path": "D:/example-output/example/metadata.json",
       "original_path": "D:/example-output/example/original.md",
       "zh_path": "D:/example-output/example/zh.md",
       "source": "human_subtitle",
+      "transcribe_provider": null,
+      "transcribe_mode": null,
+      "provider_selection_source": null,
+      "default_provider_used": false,
+      "auth_env": null,
+      "endpoint_label": null,
+      "media_uploaded": false,
+      "selection_warnings": [],
       "needs_zh_translation": true,
       "warnings": []
     }
