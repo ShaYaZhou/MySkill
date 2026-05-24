@@ -15,6 +15,11 @@
 ```text
 <title> [<video-id>]/
 ├── original.md
+├── original.asr.md
+├── speech.md
+├── chapters/
+│   ├── ch01-<title>.md
+│   └── ch01-<title>.html
 ├── zh.md
 ├── metadata.json
 └── _work/                # 临时文件，可能不存在或运行后清理
@@ -35,10 +40,12 @@ transcript-summary.json
 - `url`
 - `video_id`
 - `original_path`
+- `original_asr_path` 或 `artifacts[].path`
 - `zh_path`
 - `source`
 - `needs_zh_translation`
 - `status`
+- `artifacts`
 
 API/代理转写字段：
 
@@ -63,23 +70,60 @@ API/代理转写字段：
 - `kimi_model`
 - `minimax_model`
 - `minimax_endpoint_label`
+- `metadata_source`
+- `public_api_fallback_used`
+- `public_api_adapter`
+- `public_api_stage`
+- `public_api_endpoint_label`
+- `public_api_status`
+- `public_api_requires_login`
+- `public_api_uses_cookie`
+- `requires_web_access`
+- `subtitle_state`
+- `media_url_state`
+- `fallback_failures`
 - `error`
 - `provider_checkpoint`
+- `requested_output_profile`
+- `requested_artifacts`
+- `primary_artifact`
+- `original_mirrors_artifact`
+
+`artifacts[]` 字段：
+
+- `artifact_type`: `raw_asr`、`speech_transcript`、`chapter_handout`、`html_render`
+- `path`
+- `source_artifact`
+- `source_type`
+- `provider`
+- `model`
+- `allowed_transform`
+- `derivation_stage`
+- `status`
+- `reason`
 
 稳定状态值：
 
 - `metadata.status`: `success`、`failed`、`blocked`、`skipped`
 - `run-summary.status`: `success`、`partial_failure`、`dry_run`、`ok`、`blocked`
 - `item.status`: `success`、`failed`、`blocked`、`skipped`、`would_process`、`requires_confirmation`、`requires-proxy`、`uncertain`
-- `source`: `human_subtitle`、`openai_transcription`、`kimi_video_transcription`、`minimax_api_transcription`、`<provider>_proxy_transcription`
+- `source`: `human_subtitle`、`public_api_subtitle`、`openai_transcription`、`kimi_video_transcription`、`minimax_api_transcription`、`<provider>_proxy_transcription`
 - `provider_selection_source`: `cli-explicit`、`saved-default`、`user-confirmed-default`、`conversation-explicit`、`dry-run-confirmed`
 - `provider_capability_type`: `audio-asr`、`video-understanding`、`audio-to-llm`、`openai-compatible`、`custom-proxy`、`unsupported-direct`
+- `metadata_source`: `yt_dlp`、`public_api`
+- `public_api_status`: `not-used`、`planned`、`ok`、`partial`、`disabled`、`unsupported-public-api`、`invalid-url`、`api-failed`
+- `subtitle_state`: `unknown`、`available`、`empty`、`requires-web-access`、`missing-cid`、`api-failed`
+- `media_url_state`: `unknown`、`available`、`empty`、`requires-web-access`、`missing-cid`、`api-failed`
+- `artifact_type`: `raw_asr`、`speech_transcript`、`chapter_handout`、`html_render`
+- `allowed_transform`: `none_or_timestamp_only`、`light_cleanup_no_reorder`、`summarize_restructure_add_tables`、`html_render_from_markdown`
+- `artifact.status`: `generated`、`planned`、`skipped`、`blocked`
 
 禁止记录：
 
 - API key、token、cookie、session value。
 - 完整敏感浏览器 profile 路径。
 - 带鉴权 query 的完整 endpoint。
+- 完整临时媒体 URL、签名 query 或可复用下载凭据。
 - 私密 HTML 内容。
 
 ## `run-summary.json`
@@ -98,6 +142,8 @@ API/代理转写字段：
   "requested_backend": "auto",
   "requested_provider": "minimax",
   "requested_mode": "audio-asr",
+  "requested_output_profile": "all",
+  "requested_artifacts": ["raw_asr", "speech_transcript", "chapter_handout", "html_render"],
   "transcribe_provider": null,
   "transcribe_mode": null,
   "default_provider_path": "C:/Users/example/AppData/Roaming/MySkill/video-transcript/provider-default.json",
@@ -114,6 +160,57 @@ API/代理转写字段：
       "auth_env": "MINIMAX_API_KEY",
       "endpoint_label": "api.minimaxi.com",
       "media_uploaded": true,
+      "artifact_plan": [
+        {
+          "artifact_type": "raw_asr",
+          "path": "D:/example-output/example/original.asr.md",
+          "source_artifact": null,
+          "source_type": "audio-asr",
+          "provider": "minimax",
+          "model": "speech-2.8-turbo",
+          "allowed_transform": "none_or_timestamp_only",
+          "derivation_stage": "primary",
+          "provider_capability_type": "audio-asr",
+          "status": "planned"
+        },
+        {
+          "artifact_type": "speech_transcript",
+          "path": "D:/example-output/example/speech.md",
+          "source_artifact": "raw_asr",
+          "source_type": "raw_asr",
+          "provider": "local-cleanup",
+          "model": null,
+          "allowed_transform": "light_cleanup_no_reorder",
+          "derivation_stage": "derived",
+          "provider_capability_type": "audio-asr",
+          "status": "planned"
+        },
+        {
+          "artifact_type": "chapter_handout",
+          "path": "D:/example-output/example/chapters/ch01-example.md",
+          "source_artifact": "speech_transcript",
+          "source_type": "speech_transcript",
+          "provider": "moonshot-or-local-structured-fallback",
+          "model": null,
+          "allowed_transform": "summarize_restructure_add_tables",
+          "derivation_stage": "derived",
+          "provider_capability_type": "audio-asr",
+          "status": "planned"
+        },
+        {
+          "artifact_type": "html_render",
+          "path": "D:/example-output/example/chapters/ch01-example.html",
+          "source_artifact": "chapter_handout",
+          "source_type": "chapter_handout",
+          "provider": "local-html-render",
+          "model": null,
+          "allowed_transform": "html_render_from_markdown",
+          "derivation_stage": "derived",
+          "provider_capability_type": "audio-asr",
+          "status": "planned"
+        }
+      ],
+      "artifacts": [],
       "selection_warnings": []
     }
   ],

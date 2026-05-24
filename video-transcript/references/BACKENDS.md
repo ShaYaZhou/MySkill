@@ -59,6 +59,7 @@ DeepSeek、GLM、Gemini、Claude 可以出现在候选列表里，但不能把�
 - 如果用户提供 OpenAI-compatible 或 custom-proxy 转写 endpoint，可按代理执行。
 - 如果 provider 只支持文本生成，必须标记为 `unsupported-direct` 或 `requires-proxy`。
 - 如果使用 `video-understanding` 或 `audio-to-llm`，完成汇报必须说明这不是专用逐字 ASR。
+- Moonshot/Kimi 的 `video-understanding` 输出只能标记为 `speech_transcript` 或派生讲义，不能写入 `raw_asr`；用户明确需要逐字 ASR 时，应选择人工字幕、本地 ASR、OpenAI `audio-asr`、MiniMax `audio-asr` 或 ASR 代理。
 
 ## 数学公式
 

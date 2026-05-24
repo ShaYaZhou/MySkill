@@ -28,6 +28,18 @@
       "thumbnail_path": "C:/Users/example/Downloads/yt-dlp/示例视频标题 [abc123].jpg",
       "archive_skip": false,
       "path_state": "confirmed",
+      "metadata_source": "yt_dlp",
+      "public_api_fallback_used": false,
+      "public_api_adapter": null,
+      "public_api_stage": [],
+      "public_api_endpoint_label": [],
+      "public_api_status": "not-used",
+      "public_api_requires_login": false,
+      "public_api_uses_cookie": false,
+      "requires_web_access": false,
+      "subtitle_state": "unknown",
+      "media_url_state": "unknown",
+      "fallback_failures": [],
       "warnings": []
     }
   ],

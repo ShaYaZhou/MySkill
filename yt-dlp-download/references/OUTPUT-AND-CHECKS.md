@@ -49,6 +49,15 @@ download-summary.json
       "subtitle_paths": ["C:/out/example.zh-Hans.vtt"],
       "thumbnail_path": "C:/out/example.jpg",
       "archive_skip": false,
+      "metadata_source": "yt_dlp",
+      "public_api_fallback_used": false,
+      "public_api_adapter": null,
+      "public_api_stage": [],
+      "public_api_endpoint_label": [],
+      "public_api_status": "not-used",
+      "subtitle_state": "unknown",
+      "media_url_state": "unknown",
+      "requires_web_access": false,
       "warnings": []
     }
   ],
@@ -65,6 +74,10 @@ download-summary.json
 - `archive_skip`: `true`、`false`
 - `privacy_gate`: `none`、`cookies`、`login_required`
 - `path_state`: `confirmed`、`uncertain_path`
+- `metadata_source`: `yt_dlp`、`public_api`
+- `public_api_status`: `not-used`、`planned`、`ok`、`partial`、`disabled`、`unsupported-public-api`、`invalid-url`、`api-failed`
+- `subtitle_state`: `unknown`、`available`、`empty`、`requires-web-access`、`missing-cid`、`api-failed`
+- `media_url_state`: `unknown`、`available`、`empty`、`requires-web-access`、`missing-cid`、`api-failed`
 
 ## `--doctor`
 
@@ -76,6 +89,7 @@ download-summary.json
 - 输出目录是否可写。
 - 浏览器 cookie 配置是否可尝试读取。
 - archive 文件是否可创建或更新。
+- 公开接口 fallback 是否启用、已注册 adapter、支持域名和支持阶段。
 
 `--doctor` 不下载媒体，不读取或打印 cookie 内容。
 
@@ -84,6 +98,7 @@ download-summary.json
 预览项：
 
 - URL metadata 和播放列表条目。
+- 命中的公开接口 adapter、支持阶段、fallback 状态、字幕状态和媒体地址状态。
 - 可能的媒体格式和输出模板。
 - 人工字幕语言候选。
 - 缩略图候选。
@@ -106,6 +121,7 @@ download-summary.json
 
 - 安装或配置缺失工具。
 - 使用 `--cookies-from-browser` 并限定授权范围。
+- 使用公开接口 fallback；若接口提示登录、cookie、风控或访问控制，则转入 Web Access checkpoint。
 - 改为 `--audio-only`。
 - 跳过字幕或缩略图。
 - 跳过失败项，只保留成功项。

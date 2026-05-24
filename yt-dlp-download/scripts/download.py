@@ -13,6 +13,19 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from public_api_fallbacks import (
+    PUBLIC_API_STAGES,
+    download_public_media,
+    download_public_subtitle,
+    fetch_public_api_info,
+    public_api_doctor,
+    public_api_fallback_disabled,
+    public_api_plan,
+    public_api_summary_fields,
+    public_subtitle_languages,
+    supplement_public_api_info,
+)
+
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
 VENV_DIR = SKILL_DIR / ".venv"
@@ -70,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--update", action="store_true", help="Update yt-dlp before downloading")
     parser.add_argument("--doctor", action="store_true", help="Check local dependencies and configuration without URLs")
     parser.add_argument("--dry-run", action="store_true", help="Inspect metadata and write a summary without downloading media")
+    parser.add_argument("--no-public-api-fallback", action="store_true", help="Disable public, no-auth site API fallback adapters")
     parser.add_argument("--force", action="store_true", help="Redownload and allow overwriting existing output files")
     return parser.parse_args()
 
@@ -140,7 +154,9 @@ def make_summary(args: argparse.Namespace, output_dir: Path) -> dict:
             "update": args.update,
             "dry_run": args.dry_run,
             "force": args.force,
+            "public_api_fallback_enabled": not public_api_fallback_disabled(args),
         },
+        "public_api_fallback": public_api_doctor(public_api_fallback_disabled(args)),
         "tool_versions": {
             "python": sys.version.split()[0],
             "venv_python": str(VENV_PYTHON),
@@ -177,12 +193,27 @@ def fetch_info(url: str, args: argparse.Namespace) -> dict | None:
     result = run(cmd, check=False, capture=True)
     if result.returncode != 0:
         print(result.stderr.strip() or f"Failed to inspect URL: {url}", file=sys.stderr)
+        if public_api_fallback_disabled(args):
+            return None
+        info = fetch_public_api_info(url, disabled=False, stages=PUBLIC_API_STAGES)
+        if info:
+            print(f"Using public API fallback for metadata: {info.get('extractor_key') or 'public-api'}")
+            return info
         return None
     try:
-        return json.loads(result.stdout)
+        info = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         print(f"Failed to parse yt-dlp metadata for {url}: {exc}", file=sys.stderr)
-        return None
+        if public_api_fallback_disabled(args):
+            return None
+        return fetch_public_api_info(url, disabled=False, stages=PUBLIC_API_STAGES)
+    stages = PUBLIC_API_STAGES if args.dry_run else ("subtitle", "media")
+    return supplement_public_api_info(
+        info,
+        url,
+        disabled=public_api_fallback_disabled(args),
+        stages=stages,
+    )
 
 
 def iter_videos(info: dict, fallback_url: str) -> list[dict]:
@@ -290,9 +321,14 @@ def discover_output_files(video: dict, output_dir: Path) -> list[str]:
     return [str(path) for path in matches]
 
 
+def fallback_filename_stem(video: dict) -> str:
+    return safe_path_part(f"{video.get('title') or 'video'} [{video.get('id') or 'unknown'}]")
+
+
 def item_summary(video: dict, args: argparse.Namespace, output_dir: Path, archive_file: Path, input_url: str) -> dict:
     sub_lang = choose_subtitle_lang(video.get("subtitles") or {}, args.sub_lang)
-    return {
+    subtitle_source = "public_api" if sub_lang in public_subtitle_languages(video) else "yt_dlp"
+    item = {
         "input_url": input_url,
         "download_url": video.get("_download_url"),
         "title": video.get("title"),
@@ -302,6 +338,7 @@ def item_summary(video: dict, args: argparse.Namespace, output_dir: Path, archiv
         "output": planned_output(video, output_dir),
         "subtitle_language": sub_lang,
         "subtitle_status": "selected" if sub_lang else "none_matching_human_subtitles",
+        "subtitle_source": subtitle_source if sub_lang else None,
         "thumbnail": {
             "requested": not args.no_thumbnail,
             "status": "planned" if not args.no_thumbnail else "disabled",
@@ -315,6 +352,8 @@ def item_summary(video: dict, args: argparse.Namespace, output_dir: Path, archiv
         "returncode": None,
         "warnings": [],
     }
+    item.update(public_api_summary_fields(video))
+    return item
 
 
 def download_video(video: dict, args: argparse.Namespace, output_dir: Path, archive_file: Path, summary_item: dict) -> int:
@@ -367,6 +406,40 @@ def download_video(video: dict, args: argparse.Namespace, output_dir: Path, arch
     summary_item["output"]["actual_files"] = discover_output_files(video, output_dir)
     if summary_item["output"]["actual_files"]:
         summary_item["output"]["uncertain_path"] = False
+    if result.returncode and not public_api_fallback_disabled(args):
+        fallback_dir = output_dir / "public-api-fallback"
+        fallback = download_public_media(
+            video,
+            fallback_dir,
+            audio_only=args.audio_only,
+            filename_stem=fallback_filename_stem(video),
+        )
+        summary_item["public_api_media_download"] = {
+            "status": fallback.get("status"),
+            "paths": fallback.get("paths", []),
+        }
+        summary_item["warnings"].extend(fallback.get("warnings", []))
+        if sub_lang in public_subtitle_languages(video):
+            subtitle = download_public_subtitle(
+                video,
+                sub_lang,
+                fallback_dir,
+                filename_stem=fallback_filename_stem(video),
+            )
+            summary_item["public_api_subtitle_download"] = {
+                "status": subtitle.get("status"),
+                "paths": subtitle.get("paths", []),
+            }
+            if subtitle.get("error"):
+                summary_item["warnings"].append(str(subtitle["error"]))
+        if fallback.get("status") == "downloaded" and fallback.get("paths"):
+            summary_item["output"]["actual_files"] = list(fallback.get("paths") or [])
+            if summary_item.get("public_api_subtitle_download"):
+                summary_item["output"]["actual_files"].extend(summary_item["public_api_subtitle_download"].get("paths", []))
+            summary_item["output"]["uncertain_path"] = False
+            summary_item["status"] = "completed_public_api_fallback"
+            summary_item["returncode"] = 0
+            return 0
     summary_item["status"] = "failed" if result.returncode else "completed"
     if summary_item["archive"]["skip"] and result.returncode == 0:
         summary_item["status"] = "archive_skipped"
@@ -405,14 +478,33 @@ def run_doctor(args: argparse.Namespace, output_dir: Path, summary: dict) -> int
         "note": "Only argument visibility is checked; browser profile access is verified by yt-dlp during metadata or download.",
     }
     checks.append(cookie_check)
+    public_api = public_api_doctor(public_api_fallback_disabled(args))
+    checks.append(
+        {
+            "name": "public_api_fallback",
+            "ok": True,
+            "enabled": public_api["enabled"],
+            "adapters": [
+                {
+                    "id": adapter["id"],
+                    "domains": adapter["domains"],
+                    "stages": adapter["stages"],
+                }
+                for adapter in public_api["adapters"]
+            ],
+        }
+    )
 
-    summary["doctor"] = {"checks": checks}
+    summary["doctor"] = {"checks": checks, "public_api_fallback": public_api}
     summary["warnings"].extend(
         f"Doctor check failed: {check['name']}" for check in checks if not check.get("ok") and check["name"] != "cookies_from_browser"
     )
     for check in checks:
         status = "ok" if check.get("ok") else "missing"
         print(f"{check['name']}: {status}")
+        if check["name"] == "public_api_fallback":
+            for adapter in check.get("adapters", []):
+                print(f"  adapter {adapter['id']}: domains={', '.join(adapter['domains'])}; stages={', '.join(adapter['stages'])}")
     blocked = any(not check.get("ok") for check in checks if check["name"] != "cookies_from_browser")
     summary["result"] = "blocked" if blocked else "ok"
     summary["status"] = summary["result"]
@@ -448,7 +540,13 @@ def main() -> int:
         info = fetch_info(url, args)
         if not info:
             failures += 1
+            fallback_plan = public_api_plan(
+                url,
+                disabled=public_api_fallback_disabled(args),
+                stages=PUBLIC_API_STAGES,
+            )
             failure = {"input_url": url, "status": "metadata_failed"}
+            failure.update(public_api_summary_fields(fallback_plan))
             summary["failures"].append(failure)
             continue
         for video in iter_videos(info, url):
